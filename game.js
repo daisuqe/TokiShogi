@@ -4,7 +4,7 @@
 // 時間はすべて U（3秒）の倍数。U を変えるだけで、ゲーム全体の速さをまとめて変えられる
 const U = 3;
 const CFG = {
-  W: 7, H: 7,
+  W: 5, H: 7,                  // 盤の横・縦（LAYOUTS に同じ大きさの並びが必要）
   MOVE_TIME: 1 * U,            // 移動（どの駒も同じ）          3秒
   ROTATE_TIME: 3 * U,          // 90度回転                        9秒
   ROTATE_TIME_PROMOTED: 2 * U, // 成った駒の回転                  6秒
@@ -77,21 +77,24 @@ const inB = (x, y) => x >= 0 && y >= 0 && x < CFG.W && y < CFG.H;
 // ===== 状態 =====
 let G = null;
 
+// 盤の大きさごとの初期配置（自分側。奥の段と、その前の段）
+const LAYOUTS = {
+  '7x7': { back: ['KY','KE','GI','OU','KI','KE','KY'], mid: ['FU','HI','FU',null,'FU','KA','FU'] },
+  '5x7': { back: ['KY','GI','OU','KI','KE'],           mid: ['FU','HI','FU','KA','FU'] },
+};
 function newGame(diff, watch = false) {
   G = {
     pieces: [], grapples: [], fx: [], shots: [], sparks: [], rings: [], pops: [], time: 0, over: false, winner: -1,
     diff, watch, speed: DIFF[diff].speed, realTime: 0, cpuT: 2.0, cpuT0: 2.3, sel: null,
     countdown: CFG.COUNTDOWN, startFlash: 0, nextId: 1, captured: [[], []],
   };
-  const back0 = ['KY','KE','GI','OU','KI','KE','KY'];
-  const mid0  = ['FU','HI','FU',null,'FU','KA','FU'];
-  const back1 = ['KY','KE','KI','OU','GI','KE','KY'];
-  const mid1  = ['FU','KA','FU',null,'FU','HI','FU'];
+  // 自分（下）の並びを置き、相手（上）は点対称に置く
+  const L = LAYOUTS[CFG.W + 'x' + CFG.H];
   for (let x = 0; x < CFG.W; x++) {
-    addPiece(0, back0[x], x, 6, 0);
-    addPiece(0, mid0[x], x, 5, 0);
-    addPiece(1, back1[x], x, 0, 2);
-    addPiece(1, mid1[x], x, 1, 2);
+    addPiece(0, L.back[x], x, CFG.H - 1, 0);
+    addPiece(0, L.mid[x], x, CFG.H - 2, 0);
+    addPiece(1, L.back[x], CFG.W - 1 - x, 0, 2);
+    addPiece(1, L.mid[x], CFG.W - 1 - x, 1, 2);
   }
 }
 function addPiece(side, type, x, y, dir) {
@@ -606,7 +609,7 @@ function resize() {
   dpr = window.devicePixelRatio || 1;
   const w = canvas.clientWidth;
   canvas.width = Math.round(w * dpr);
-  canvas.height = Math.round(w * dpr);
+  canvas.height = Math.round(w * CFG.H / CFG.W * dpr);
   canvas.style.transform =
     `perspective(${canvas.offsetWidth * VIEW.PERSPECTIVE}px) rotateX(${VIEW.TILT}deg)`;
 }
@@ -625,6 +628,8 @@ function screenToCell(clientX, clientY) {
   const lx = u + bw / 2 - border, ly = v + bh / 2 - border;
   return [Math.floor(lx / canvas.clientWidth * CFG.W), Math.floor(ly / canvas.clientHeight * CFG.H)];
 }
+// 盤の縦横の比を CSS に渡す（長方形の盤）
+canvas.style.setProperty('--ar', CFG.W / CFG.H);
 new ResizeObserver(resize).observe(canvas);
 
 const cellC = v => (v + 0.5) * cs;
@@ -838,11 +843,12 @@ function badge(x, y, text, bg, fg = '#0a0c0f') {
 function draw() {
   const W = canvas.width / dpr;
   cs = W / CFG.W;
+  const Hp = cs * CFG.H; // 盤の高さ（長方形の盤）
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
   // 盤：真っ黒に細い線と交点の十字
   ctx.fillStyle = CLR.board;
-  ctx.fillRect(0, 0, W, W);
+  ctx.fillRect(0, 0, W, Hp);
   for (let x = 0; x < CFG.W; x++) {
     ctx.fillStyle = CLR.zone[0]; ctx.fillRect(x * cs, 0, cs, cs * 2);
     ctx.fillStyle = CLR.zone[1]; ctx.fillRect(x * cs, (CFG.H - 2) * cs, cs, cs * 2);
@@ -850,7 +856,9 @@ function draw() {
   ctx.strokeStyle = CLR.line;
   ctx.lineWidth = 1;
   for (let i = 1; i < CFG.W; i++) {
-    ctx.beginPath(); ctx.moveTo(i * cs + 0.5, 0); ctx.lineTo(i * cs + 0.5, W); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(i * cs + 0.5, 0); ctx.lineTo(i * cs + 0.5, Hp); ctx.stroke();
+  }
+  for (let i = 1; i < CFG.H; i++) {
     ctx.beginPath(); ctx.moveTo(0, i * cs + 0.5); ctx.lineTo(W, i * cs + 0.5); ctx.stroke();
   }
   ctx.strokeStyle = CLR.cross;

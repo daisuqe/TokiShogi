@@ -79,9 +79,10 @@ header .en {
 #board {
   display: block;
   /* 手前に倒すと下の辺が広がる（30度で約13%）ので、横幅に余裕をとる */
-  width: min(calc((100vw - 32px) * 0.86), 580px, calc(100svh - 230px));
-  min-width: 260px;
-  aspect-ratio: 1;
+  /* --ar は盤の横÷縦（game.js が入れる）。縦長の盤は高さで幅を決める */
+  width: min(calc((100vw - 32px) * 0.86), 580px, calc((100svh - 230px) * var(--ar, 1)));
+  min-width: 220px;
+  aspect-ratio: var(--ar, 1);
   border: 2px solid var(--g4);
   border-radius: 2px;
   /* 盤の厚み・光（盤といっしょに倒れる） */
