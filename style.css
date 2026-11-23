@@ -282,3 +282,18 @@ button.apps-btn:hover:not(:disabled) { opacity: 1; box-shadow: none; border: non
 .apps-msg { margin: 0 0 18px; white-space: pre-line; line-height: 1.7; }
 .apps-btns { display: flex; gap: 12px; justify-content: center; }
 .apps-btns button { box-sizing: border-box; width: 110px; height: 36px; padding: 0; flex: none; }
+
+/* スタート画面は枠なし（上の線も、囲みも、光も出さない） */
+.start .panel {
+  border: none;
+  box-shadow: none;
+  background: transparent;
+}
+
+/* スタート画面は、後ろの盤が透けないように不透明にする（背景はページと同じ） */
+.overlay.start {
+  background:
+    radial-gradient(ellipse at 50% 40%, rgba(63, 220, 120, 0.12), transparent 65%),
+    var(--g0);
+  backdrop-filter: none;
+}
