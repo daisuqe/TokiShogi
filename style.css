@@ -297,3 +297,16 @@ button.apps-btn:hover:not(:disabled) { opacity: 1; box-shadow: none; border: non
     var(--g0);
   backdrop-filter: none;
 }
+
+/* 試合中の右上の×ボタン（スタート画面などのオーバーレイが上に重なるので、試合中だけ見える） */
+.quit-btn {
+  position: fixed;
+  top: max(12px, env(safe-area-inset-top));
+  right: max(12px, env(safe-area-inset-right));
+  width: 40px; height: 40px; padding: 0;
+  background: none; border: none; box-shadow: none;
+  font-family: "M PLUS 1 Code", sans-serif; font-size: 30px; line-height: 40px; font-weight: 400;
+  color: var(--g4); opacity: 0.7; cursor: pointer;
+}
+button.quit-btn:hover:not(:disabled) { opacity: 1; color: var(--g5); border: none; box-shadow: none; }
+.quit-btn:focus-visible { outline: 2px solid #fff; outline-offset: -4px; opacity: 1; }

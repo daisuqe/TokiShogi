@@ -1210,7 +1210,7 @@ function endGame(winner) {
   const m = Math.floor(G.realTime / 60), s = Math.floor(G.realTime % 60);
   $('resultTitle').textContent = G.watch ? (winner === 0 ? '青の勝ち' : '赤の勝ち') : (winner === 0 ? '勝ち' : '負け');
   $('resultTime').textContent = `${m}分${String(s).padStart(2, '0')}秒`;
-  setTimeout(() => { $('result').hidden = false; }, 900);
+  setTimeout(() => { if (G && G.over) $('result').hidden = false; }, 900);
 }
 document.querySelectorAll('[data-diff]').forEach(b =>
   b.addEventListener('click', () => startGame(b.dataset.diff)));
@@ -1230,7 +1230,7 @@ function frame(now) {
   // 横向きの間は試合を止めて「縦にしてください」を出す
   const sideways = phoneIsLandscape();
   if ($('portrait').hidden === sideways) $('portrait').hidden = !sideways;
-  if (!sideways) update(dt);
+  if (!sideways && !(G && G.paused)) update(dt); // 確認が出ている間は止める
   draw();
   updateHud();
   requestAnimationFrame(frame);
@@ -1308,12 +1308,12 @@ appsDlg.addEventListener('click', e => { if (e.target === appsDlg) closeApps(); 
 // ダイアログが開いている間は、ゲームのキー操作を止める（先に受け取って、ゲーム側へ渡さない）。
 // Enter / Space はボタンの標準の動き（押す）に任せる
 window.addEventListener('keydown', e => {
-  const dlg = !appsDlg.hidden ? appsDlg : !licenseDlg.hidden ? licenseDlg : null;
+  const dlg = !quitDlg.hidden ? quitDlg : !appsDlg.hidden ? appsDlg : !licenseDlg.hidden ? licenseDlg : null;
   if (!dlg) return;
   const btns = [...dlg.querySelectorAll('button')];
   if (e.key === 'Escape') {
     e.preventDefault();
-    dlg === appsDlg ? closeApps() : closeLicense();
+    dlg === quitDlg ? closeQuit() : dlg === appsDlg ? closeApps() : closeLicense();
   } else if (e.key === 'Tab' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
     // フォーカスをダイアログのボタンの中だけで回す
     e.preventDefault();
@@ -1323,3 +1323,33 @@ window.addEventListener('keydown', e => {
   }
   e.stopImmediatePropagation();
 }, true);
+
+// ===== 試合中の右上の×：試合を終了してトップ画面へ戻る =====
+const quitDlg = $('quitDlg');
+function openQuit() {
+  if (!G) return;
+  $('quitMsg').textContent = isJapanese()
+    ? '試合を終了してトップ画面に戻りますか？'
+    : 'End the game and return to the title screen?';
+  G.paused = true; // 確認が出ている間は試合を止める
+  quitDlg.hidden = false;
+  $('quitNo').focus(); // 誤操作を防ぐため「No」を選んでおく
+}
+function closeQuit() {
+  if (G) G.paused = false;
+  quitDlg.hidden = true;
+  $('quitBtn').focus();
+}
+function backToTitle() {
+  quitDlg.hidden = true;
+  G = null;
+  $('result').hidden = true;
+  $('overlay').hidden = false;
+  document.querySelector('.controls').style.visibility = '';
+  $('toast').classList.remove('show');
+  hudCache = '';
+}
+$('quitBtn').addEventListener('click', openQuit);
+$('quitYes').addEventListener('click', backToTitle);
+$('quitNo').addEventListener('click', closeQuit);
+quitDlg.addEventListener('click', e => { if (e.target === quitDlg) closeQuit(); }); // 外側を押したら閉じる
