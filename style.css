@@ -40,6 +40,8 @@ body::after {
   z-index: 10;
 }
 b, strong, h1, h2 { font-weight: normal; }
+/* タイトルの横の「（作成中）」 */
+.wip { font-size: 16px; letter-spacing: 0; color: var(--g3); text-shadow: none; vertical-align: middle; }
 /* タイトルの「天」「棋」のドット絵。美咲の字と同じ大きさ・字間で並べる */
 .glyph {
   width: 1em; height: 1em;
