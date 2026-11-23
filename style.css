@@ -18,6 +18,8 @@
   --font: "Misaki", "Yu Gothic UI", "Meiryo", sans-serif;
 }
 * { box-sizing: border-box; }
+/* ページの一番外側も暗くする（スマホで引っぱったときや、上のノッチのあたりが白く見えないように） */
+html { background: var(--g0); color-scheme: dark; }
 html, body { margin: 0; }
 body {
   background:
