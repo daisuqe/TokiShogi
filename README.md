@@ -23,8 +23,12 @@
 | `style.css` | 見た目 |
 | `game.js` | ルール・COM・描画 |
 | `misaki_gothic.woff2` | 美咲ゴシック（画面の文字） |
+| `icons/` | タブのアイコン（16・32px）と、iPhone のホーム画面用アイコン（180px） |
 
 ## 使っているフォント
 
 - [美咲フォント](https://littlelimit.net/misaki.htm)（美咲ゴシック）：画面の文字
 - [M PLUS 1 Code](https://fonts.google.com/specimen/M+PLUS+1+Code)（Google Fonts）：駒の文字とルール説明
+
+Copyright (c) 2026 daisuqe. All rights reserved.
+無断での複製・改変・再配布・転載を禁じます(詳しくは `LICENSE` を見てください)。

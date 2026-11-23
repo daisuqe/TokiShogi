@@ -1242,3 +1242,84 @@ if (document.fonts) {
   document.fonts.load('16px "Misaki"').catch(() => {});
 }
 requestAnimationFrame(frame);
+
+// ===== 著作権の表示と License 画面 =====
+const licenseDlg = $('license');
+let licenseReturn = null;
+function openLicense() {
+  licenseReturn = document.activeElement;
+  licenseDlg.hidden = false;
+  $('licenseClose').focus();
+}
+function closeLicense() {
+  licenseDlg.hidden = true;
+  if (licenseReturn && licenseReturn.focus) licenseReturn.focus();
+}
+$('copyright').addEventListener('click', openLicense);
+$('licenseClose').addEventListener('click', closeLicense);
+licenseDlg.addEventListener('click', e => { if (e.target === licenseDlg) closeLicense(); }); // 外側を押したら閉じる
+
+// ===== スタート画面右上：アプリ一覧へ移動するボタン =====
+const APPS_ICON = [
+  '......###...###.',
+  '.....#...#.#...#',
+  '.....#...#.#...#',
+  '.....#..#..#..#.',
+  '.....#..#..#..#.',
+  '....##..####..#.',
+  '..##.......#..#.',
+  '.#............#.',
+  '#.............#.',
+  '#..............#',
+  '############...#',
+  '............#..#',
+  '.###########...#',
+  '.#............#.',
+  '..##........##..',
+  '....########....'
+];
+(function drawAppsIcon() {
+  const ictx = $('appsIcon').getContext('2d');
+  // 画面のUIに合わせた明るい緑で、'#' のドットだけ描く
+  ictx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--g4').trim() || '#3fdc78';
+  APPS_ICON.forEach((row, y) => {
+    for (let x = 0; x < row.length; x++) if (row[x] === '#') ictx.fillRect(x, y, 1, 1);
+  });
+})();
+
+const appsDlg = $('appsDlg');
+const isJapanese = () => (navigator.language || '').toLowerCase().startsWith('ja');
+function openApps() {
+  $('appsMsg').textContent = isJapanese()
+    ? 'アプリ一覧に移動します。\nこのゲームを離れますがよろしいですか？'
+    : 'This will take you to the app list.\nDo you want to leave this game?';
+  appsDlg.hidden = false;
+  $('appsNo').focus(); // 誤操作を防ぐため「No」を選んでおく
+}
+function closeApps() {
+  appsDlg.hidden = true;
+  $('appsBtn').focus();
+}
+$('appsBtn').addEventListener('click', openApps);
+$('appsYes').addEventListener('click', () => { location.href = 'https://daisuqe.github.io/'; });
+$('appsNo').addEventListener('click', closeApps);
+appsDlg.addEventListener('click', e => { if (e.target === appsDlg) closeApps(); }); // 外側を押したら閉じる
+
+// ダイアログが開いている間は、ゲームのキー操作を止める（先に受け取って、ゲーム側へ渡さない）。
+// Enter / Space はボタンの標準の動き（押す）に任せる
+window.addEventListener('keydown', e => {
+  const dlg = !appsDlg.hidden ? appsDlg : !licenseDlg.hidden ? licenseDlg : null;
+  if (!dlg) return;
+  const btns = [...dlg.querySelectorAll('button')];
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    dlg === appsDlg ? closeApps() : closeLicense();
+  } else if (e.key === 'Tab' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+    // フォーカスをダイアログのボタンの中だけで回す
+    e.preventDefault();
+    const i = btns.indexOf(document.activeElement);
+    const back = e.key === 'ArrowLeft' || (e.key === 'Tab' && e.shiftKey);
+    btns[(i + (back ? -1 : 1) + btns.length) % btns.length].focus();
+  }
+  e.stopImmediatePropagation();
+}, true);

@@ -1,9 +1,24 @@
 <!doctype html>
+<!--
+  刻将棋 (TokiShogi)
+  © 2026 daisuqe. All rights reserved.
+  本ゲームのソースコード・画像・文章などの著作権は daisuqe が保有します。
+  無断での複製・改変・再配布・転載を禁じます。
+  Unauthorized copying, modification, redistribution, or reposting is prohibited.
+  詳しくは LICENSE を見てください。 / See LICENSE for details.
+-->
 <html lang="ja">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="author" content="daisuqe">
+<meta name="copyright" content="Copyright (c) 2026 daisuqe. All rights reserved.">
 <title>刻将棋（作成中）</title>
+<!-- アイコン：ブラウザのタブ（favicon）と、iPhone のホーム画面 -->
+<link rel="icon" type="image/png" sizes="16x16" href="icons/icon16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/icon32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="刻将棋">
 <link rel="preload" href="misaki_gothic.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -43,7 +58,7 @@
   <p id="hint" class="hint"></p>
 </main>
 
-<div id="overlay" class="overlay">
+<div id="overlay" class="overlay start">
   <div class="panel">
     <h2 aria-label="刻将棋（作成中）">刻将<svg class="glyph" viewBox="0 0 8 8" aria-hidden="true"><path d="M1 0h1v1h-1zM4 0h1v1h-1zM6 0h1v1h-1zM1 1h1v1h-1zM3 1h1v1h-1zM4 1h1v1h-1zM5 1h1v1h-1zM6 1h1v1h-1zM7 1h1v1h-1zM0 2h1v1h-1zM1 2h1v1h-1zM2 2h1v1h-1zM4 2h1v1h-1zM6 2h1v1h-1zM1 3h1v1h-1zM4 3h1v1h-1zM5 3h1v1h-1zM6 3h1v1h-1zM0 4h1v1h-1zM1 4h1v1h-1zM2 4h1v1h-1zM4 4h1v1h-1zM6 4h1v1h-1zM0 5h1v1h-1zM1 5h1v1h-1zM3 5h1v1h-1zM4 5h1v1h-1zM5 5h1v1h-1zM6 5h1v1h-1zM7 5h1v1h-1zM1 6h1v1h-1zM4 6h1v1h-1zM6 6h1v1h-1z"/></svg><small class="wip">（作成中）</small></h2>
     <p class="sub">リアルタイム将棋</p>
@@ -71,11 +86,44 @@
       <button id="watch">COM対戦</button>
     </div>
   </div>
+  <!-- 右上：アプリ一覧へ移動するボタン（アイコンは game.js が 16×16 のデータから描く） -->
+  <button id="appsBtn" class="apps-btn" type="button" aria-label="App list" aria-haspopup="dialog"><canvas id="appsIcon" width="16" height="16"></canvas></button>
+  <!-- 下端：著作権の表示。押すと LICENSE の内容を出す -->
+  <button id="copyright" class="copyright" type="button" aria-haspopup="dialog">© 2026 daisuqe. All rights reserved.</button>
 </div>
 
 <!-- スマホを横にしたときは試合を止めて案内する -->
 <div id="portrait" class="overlay portrait" hidden>
-  <div class="panel"><p>スマホを縦にしてください</p></div>
+  <div class="panel"><p>スマホを縦にしてください</p><p class="copyright-note">© 2026 daisuqe. All rights reserved.</p></div>
+</div>
+
+<!-- License の画面（LICENSE ファイルと同じ文章を埋め込む） -->
+<div id="license" class="overlay license" role="dialog" aria-modal="true" aria-labelledby="licenseTitle" hidden>
+  <div class="panel">
+    <h3 id="licenseTitle">License</h3>
+    <pre class="license-text">Copyright (c) 2026 daisuqe. All rights reserved.
+This game ("TokiShogi"), including its source code, graphics, music data, and
+text, is the property of the copyright holder. No license is granted to copy,
+modify, distribute, sublicense, sell, or publish any part of it, in source or
+compiled form, without prior written permission from the copyright holder.
+You may play the game as published at its official page.
+本ゲーム「刻将棋」(ソースコード、画像、音楽データ、文章を含む)の著作権は、
+daisuqe が保有します。著作権者の事前の書面による許可なく、全部または一部を、
+複製、改変、再配布、転載、販売、公開することを禁じます。
+公式に公開されているページで、遊ぶことは自由です。</pre>
+    <div class="diff"><button id="licenseClose" class="primary" type="button">Close</button></div>
+  </div>
+</div>
+
+<!-- アプリ一覧へ移動するかの確認 -->
+<div id="appsDlg" class="overlay apps-dlg" role="dialog" aria-modal="true" aria-labelledby="appsMsg" hidden>
+  <div class="panel apps-panel">
+    <p id="appsMsg" class="apps-msg"></p>
+    <div class="apps-btns">
+      <button id="appsYes" type="button">Yes</button>
+      <button id="appsNo" type="button">No</button>
+    </div>
+  </div>
 </div>
 
 <div id="result" class="overlay" hidden>

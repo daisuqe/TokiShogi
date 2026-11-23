@@ -223,3 +223,60 @@ kbd { font-size: 8px; color: var(--g3); font-family: inherit; }
 .diff { display: flex; gap: 6px; justify-content: center; align-items: stretch; }
 .diff button { flex: 1 1 0; min-width: 0; padding: 8px 4px; line-height: 1.3; }
 #result .diff button { flex: 0 0 auto; padding: 8px 14px; }
+
+/* ===== スタート画面の右上・下端（パネルと重ならないよう、上下に余白をとる） ===== */
+.overlay.start {
+  padding-top: calc(max(16px, env(safe-area-inset-top)) + 40px);
+  padding-bottom: calc(max(8px, env(safe-area-inset-bottom)) + 28px);
+}
+
+/* 著作権の表示：小さく薄く。押すと License 画面 */
+.copyright {
+  position: absolute;
+  left: 50%; transform: translateX(-50%);
+  bottom: max(8px, env(safe-area-inset-bottom));
+  background: none; border: none; box-shadow: none;
+  padding: 4px 8px;
+  font-family: "M PLUS 1 Code", "Yu Gothic UI", sans-serif;
+  font-size: 11px; letter-spacing: 0.02em;
+  color: var(--g3); opacity: 0.75;
+  white-space: nowrap; cursor: pointer;
+}
+button.copyright:hover:not(:disabled) { color: var(--g5); opacity: 1; box-shadow: none; }
+.copyright:focus-visible { outline: 1px solid var(--g4); outline-offset: 2px; opacity: 1; }
+.copyright-note {
+  margin-top: 16px !important;
+  font-family: "M PLUS 1 Code", sans-serif; font-size: 11px; color: var(--g3);
+}
+
+/* License の画面（ほかのパネルと同じ見た目） */
+.license { z-index: 30; }
+.license .panel { max-width: 560px; }
+.license h3 { margin: 0 0 12px; text-align: center; font-size: 24px; letter-spacing: 0.2em; color: var(--g5); }
+.license-text {
+  margin: 0 0 18px;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+  font-family: "M PLUS 1 Code", "Yu Gothic UI", sans-serif;
+  font-size: 12px; line-height: 1.7; color: #a6ecbf;
+}
+.license .diff button { flex: 0 0 auto; padding: 8px 24px; }
+
+/* 右上のアプリ一覧ボタン：16×16 のドット絵を 32px に拡大（ぼかさない） */
+.apps-btn {
+  position: absolute;
+  top: max(16px, env(safe-area-inset-top));
+  right: max(16px, env(safe-area-inset-right));
+  width: 32px; height: 32px; padding: 0;
+  background: none; border: none; box-shadow: none;
+  opacity: 0.7; cursor: pointer;
+}
+button.apps-btn:hover:not(:disabled) { opacity: 1; box-shadow: none; border: none; }
+.apps-btn:focus-visible { outline: 2px solid #fff; outline-offset: 3px; opacity: 1; }
+.apps-btn canvas { display: block; width: 32px; height: 32px; image-rendering: pixelated; }
+
+/* アプリ一覧へ移動する確認 */
+.apps-dlg { z-index: 40; background: rgba(0, 0, 0, 0.5); backdrop-filter: none; }
+.apps-panel { width: min(380px, 100%); text-align: center; }
+.apps-msg { margin: 0 0 18px; white-space: pre-line; line-height: 1.7; }
+.apps-btns { display: flex; gap: 12px; justify-content: center; }
+.apps-btns button { box-sizing: border-box; width: 110px; height: 36px; padding: 0; flex: none; }
