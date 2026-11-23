@@ -25,14 +25,15 @@ const CFG = {
 //  react : 相手が動き出してから、それに気づくまで
 //  notice: 自分の駒が狙われているのに気づく確率（見落としがある）
 //  hands : 同時に動かす駒の数の上限（人が一度に気を配れる数）
-//  aggr  : 攻められる場面で、実際に攻めに行く確率（低いと、好機を見逃す）
+//  aggr  : 取れる駒があるとき、実際に攻めに行く確率
 //  help  : 味方の組み合いに助太刀を送る確率
+//  noise : 狙う駒の選び方のいいかげんさ（大きいほど、価値の低い駒や守りの固い駒を狙いがち）
 //  speed : 時間の進む速さ（0.5 = 1/2。移動3秒が実際には6秒になる）
 const DIFF = {
-  easy:   { think: 2.8, jitter: 1.2, react: 1.4, notice: 0.4, hands: 2, aggr: 0.35, help: 0.3, speed: 1 },
-  easy2:  { think: 2.8, jitter: 1.2, react: 1.4, notice: 0.4, hands: 2, aggr: 0.35, help: 0.3, speed: 0.5 },  // おそい やさしい
-  normal: { think: 2.0, jitter: 0.9, react: 1.0, notice: 0.6, hands: 2, aggr: 0.65, help: 0.6, speed: 1 },
-  hard:   { think: 1.3, jitter: 0.7, react: 0.7, notice: 0.8, hands: 2, aggr: 1.0, help: 1.0, speed: 1 },
+  easy:   { think: 2.8, jitter: 1.2, react: 1.4, notice: 0.35, hands: 2, aggr: 0.5,  help: 0.3, noise: 10, speed: 1 },
+  easy2:  { think: 2.8, jitter: 1.2, react: 1.4, notice: 0.35, hands: 2, aggr: 0.5,  help: 0.3, noise: 10, speed: 0.5 },  // おそい やさしい
+  normal: { think: 1.7, jitter: 0.8, react: 0.9, notice: 0.7,  hands: 2, aggr: 0.9,  help: 0.7, noise: 3,  speed: 1 },
+  hard:   { think: 1.3, jitter: 0.7, react: 0.7, notice: 0.85, hands: 2, aggr: 1.0,  help: 1.0, noise: 1,  speed: 1 },
 };
 
 // ===== 駒の動き（前 = (0,-1)、右 = (1,0) として書き、向きで回す） =====
@@ -464,6 +465,11 @@ function updateGrapples(dt) {
 }
 
 // ===== CPU =====
+// COM の考え方（強い作戦を土台に、強さごとの制限をかける）
+//  1. 狙われたら避ける（気づくまでの遅れ・見落としあり）
+//  2. 取れる駒があれば攻め続ける。狙いは「価値が高い・守りが薄い・弱っている」駒
+//  3. 味方の組み合いに助太刀を送る／分が悪ければ離れる
+//  4. それ以外は前へ出る（危ないマスはなるべく避ける）
 function cpuThink(S = 1, dk = G.diff) {
   const D = DIFF[dk];
   const O = 1 - S;
@@ -472,6 +478,7 @@ function cpuThink(S = 1, dk = G.diff) {
   if (free <= 0) return;
   const mine = G.pieces.filter(p => p.side === S);
   const ready = p => !(p.cool > 0); // 休み中でない
+  const idleReady = p => p.state === 'idle' && ready(p);
 
   const threat = new Set();
   for (const p of G.pieces) {
@@ -502,8 +509,8 @@ function cpuThink(S = 1, dk = G.diff) {
     if (!t.noticed[S]) continue;
     const v = mine.find(p => (p.state === 'idle' || p.state === 'rotating') && p.x === t.tx && p.y === t.ty);
     if (!v) continue;
-    const hit = CFG.HIT;
-    if (v.type !== 'OU' && supporters(S, v.x, v.y, v).length > 0 && v.hp - hit > 30) continue; // 受けて立つ
+    // 守りが2体以上いて体力も十分なら、受けて立つ（乗ってきた駒を返り討ちにできる）
+    if (v.type !== 'OU' && supporters(S, v.x, v.y, v).length >= 2 && v.hp > 50) continue;
     const pr = VALUE[v.type] + (v.hp < 60 ? 3 : 0);
     if (!dodge || pr > dodge.pr) dodge = { v, pr };
   }
@@ -512,21 +519,39 @@ function cpuThink(S = 1, dk = G.diff) {
     if (b) { startMove(dodge.v, b.it); return; }
   }
 
-  // 2. 組み合いの手当て（加勢を送る／分が悪ければ離れる）
+  // 2. 攻める：取れる駒があれば攻め続ける
+  if (Math.random() < D.aggr) {
+    const atks = [];
+    for (const p of mine) {
+      if (!idleReady(p)) continue;
+      for (const o of legalTargets(p)) if (o.cap) atks.push({ p, o });
+    }
+    const a = bestOf(atks, ({ p, o }) => {
+      const e = o.cap;
+      const theirN = supporters(O, o.x, o.y, e).length, ourN = supporters(S, o.x, o.y, p).length;
+      let s = VALUE[e.type] * 2 - theirN * 6 + ourN * 2 - VALUE[p.type] * 0.3 + (100 - e.hp) * 0.05
+        + Math.random() * D.noise;
+      if (p.type === 'OU') s -= 12;      // 王で攻めるのは最後の手段
+      if (p.hp <= theirN * CFG.SUP * 3) s -= 6; // 弱った駒で守りの中へは飛び込まない
+      return s;
+    });
+    if (a && a.s > -4) { startMove(a.it.p, a.it.o); return; }
+  }
+
+  // 3. 組み合いの手当て（助太刀を送る／分が悪ければ離れる）
   for (const g of G.grapples) {
     const ourDef = g.def.side === S, ourAtk = g.atk.side === S;
     if (!ourDef && !ourAtk) continue;
     if ((g.age || 0) < D.react) continue; // 組み合いになったことに気づくまで
-    // このままだと乗った駒が先に倒れるなら離れる
     const atkLoss = g.defSups.length * CFG.SUP, defLoss = CFG.BASE + g.atkSups.length * CFG.SUP;
     if (ourAtk && ready(g.atk) && atkLoss > 0 && g.atk.hp / atkLoss < g.def.hp / defLoss) {
       const b = bestOf(legalTargets(g.atk).filter(o => !o.cap), o => safeScore(g.atk, o.x, o.y) + Math.random());
       if (b) { startMove(g.atk, b.it); return; }
     }
-    if ((ourDef || g.defSups.length > 0) && Math.random() < D.help) {
+    if (Math.random() < D.help) {
       const cands = [];
       for (const q of mine) {
-        if (q.state !== 'idle' || q.type === 'OU' || !ready(q)) continue;
+        if (!idleReady(q) || q.type === 'OU') continue;
         for (const o of legalTargets(q)) {
           if (!o.cap && canReachFrom(q, o.x, o.y, q.dir, g.x, g.y)) cands.push({ q, o });
         }
@@ -536,39 +561,18 @@ function cpuThink(S = 1, dk = G.diff) {
     }
   }
 
-  if (free < 2) return; // 1手は守りに残しておく
-
-  // 3. 攻める
-  const atks = [];
-  for (const p of mine) {
-    if (p.state !== 'idle' || !ready(p)) continue;
-    for (const o of legalTargets(p)) if (o.cap) atks.push({ p, o });
-  }
-  const a = bestOf(atks, ({ p, o }) => {
-    const e = o.cap;
-    // 着いたあとの撃ち合いで勝てるかを見積もる（助太刀の数で減る速さが変わる）
-    const ourN = supporters(S, o.x, o.y, p).length, theirN = supporters(O, o.x, o.y, e).length;
-    const atkLoss = theirN * CFG.SUP, defLoss = CFG.BASE + ourN * CFG.SUP;
-    const win = atkLoss === 0 || p.hp / atkLoss > Math.max(0, e.hp - CFG.HIT) / defLoss;
-    let s = VALUE[e.type] * 1.5 + (win ? 6 : -12) - VALUE[p.type] * 0.4 + Math.random() * 2;
-    if (p.type === 'OU') s -= 15;
-    return s;
-  });
-  if (a && a.s > 2.5 && Math.random() < D.aggr) { startMove(a.it.p, a.it.o); return; }
-
   // 4. 前へ出る
-  if (Math.random() < 0.35) return;
   const advs = [];
   for (const p of mine) {
-    if (p.state !== 'idle' || p.type === 'OU' || !ready(p)) continue;
+    if (!idleReady(p) || p.type === 'OU') continue;
     for (const o of legalTargets(p)) if (!o.cap) advs.push({ p, o });
   }
   const v = bestOf(advs, ({ p, o }) => {
-    let s = (o.y - p.y) * fwd * 1.2 + safeScore(p, o.x, o.y) + Math.random() * 2.5;
-    if (threat.has(p.x + ',' + p.y) && supporters(S, p.x, p.y, p).length === 0) s += 2;
+    let s = Math.max(0, (o.y - p.y) * fwd) * 1.5 + safeScore(p, o.x, o.y) * 0.3 + Math.random() * (2 + D.noise * 0.3);
+    if (threat.has(p.x + ',' + p.y) && supporters(S, p.x, p.y, p).length === 0) s += 2; // 危ない所から離れる
     return s;
   });
-  if (v && v.s > 0.5) startMove(v.it.p, v.it.o);
+  if (v) startMove(v.it.p, v.it.o); // 手を止めない（止まると手数で押し負ける）
 }
 
 // ===== 描画 =====
