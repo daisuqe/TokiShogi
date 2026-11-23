@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>刻将棋</title>
+<link rel="preload" href="misaki_gothic.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=M+PLUS+1+Code:wght@400;700&display=block">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <header>
+    <!-- 「棋」は美咲の字の代わりに描いたドット絵（8×8） -->
+    <h1 aria-label="刻将棋">刻将<svg class="glyph" viewBox="0 0 8 8" aria-hidden="true"><path d="M1 0h1v1h-1zM4 0h1v1h-1zM6 0h1v1h-1zM1 1h1v1h-1zM3 1h1v1h-1zM4 1h1v1h-1zM5 1h1v1h-1zM6 1h1v1h-1zM7 1h1v1h-1zM0 2h1v1h-1zM1 2h1v1h-1zM2 2h1v1h-1zM4 2h1v1h-1zM6 2h1v1h-1zM1 3h1v1h-1zM4 3h1v1h-1zM5 3h1v1h-1zM6 3h1v1h-1zM0 4h1v1h-1zM1 4h1v1h-1zM2 4h1v1h-1zM4 4h1v1h-1zM6 4h1v1h-1zM0 5h1v1h-1zM1 5h1v1h-1zM3 5h1v1h-1zM4 5h1v1h-1zM5 5h1v1h-1zM6 5h1v1h-1zM7 5h1v1h-1zM1 6h1v1h-1zM4 6h1v1h-1zM6 6h1v1h-1z"/></svg></h1>
+  </header>
+
+  <div class="hud cpu">
+    <span class="who" id="whoCpu">COM</span>
+    <span class="label">空き手</span><span id="handsCpu" class="hands"></span>
+    <span class="label">取った駒</span><span id="capsCpu" class="caps"></span>
+  </div>
+
+  <div class="boardwrap">
+    <canvas id="board"></canvas>
+    <div id="toast" class="toast"></div>
+    <div id="count" class="count"></div>
+  </div>
+
+  <div class="hud you">
+    <span class="who" id="whoYou">あなた</span>
+    <span class="label">空き手</span><span id="handsYou" class="hands"></span>
+    <span class="label">取った駒</span><span id="capsYou" class="caps"></span>
+  </div>
+
+  <div class="controls">
+    <!-- 90度回転の矢印：上向きから右向き（左は左右反転して、上向きから左向き）へ曲がるカーブ -->
+    <button id="rotL" disabled><svg class="rot" viewBox="0 0 24 24" aria-hidden="true"><g transform="translate(24 0) scale(-1 1)"><path d="M6 21 V12 A7 7 0 0 1 13 5 H15"/><polygon points="14.5,0.5 22.5,5 14.5,9.5"/></g></svg>左へ回す <kbd>Q</kbd></button>
+    <button id="rotR" disabled>右へ回す<svg class="rot" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 21 V12 A7 7 0 0 1 13 5 H15"/><polygon points="14.5,0.5 22.5,5 14.5,9.5"/></svg><kbd>E</kbd></button>
+  </div>
+  <p id="hint" class="hint"></p>
+</main>
+
+<div id="overlay" class="overlay">
+  <div class="panel">
+    <h2 aria-label="刻将棋">刻将<svg class="glyph" viewBox="0 0 8 8" aria-hidden="true"><path d="M1 0h1v1h-1zM4 0h1v1h-1zM6 0h1v1h-1zM1 1h1v1h-1zM3 1h1v1h-1zM4 1h1v1h-1zM5 1h1v1h-1zM6 1h1v1h-1zM7 1h1v1h-1zM0 2h1v1h-1zM1 2h1v1h-1zM2 2h1v1h-1zM4 2h1v1h-1zM6 2h1v1h-1zM1 3h1v1h-1zM4 3h1v1h-1zM5 3h1v1h-1zM6 3h1v1h-1zM0 4h1v1h-1zM1 4h1v1h-1zM2 4h1v1h-1zM4 4h1v1h-1zM6 4h1v1h-1zM0 5h1v1h-1zM1 5h1v1h-1zM3 5h1v1h-1zM4 5h1v1h-1zM5 5h1v1h-1zM6 5h1v1h-1zM7 5h1v1h-1zM1 6h1v1h-1zM4 6h1v1h-1zM6 6h1v1h-1z"/></svg></h2>
+    <p class="sub">リアルタイム将棋</p>
+    <!-- 前半：これだけは知っておく必要があるルール -->
+    <ul class="rules">
+      <li>順番はありません。<b>王（玉）を取ったら勝ち</b>。</li>
+      <li>駒を選んで行き先を押すと動きます。</li>
+      <li>回すボタンで<b>90度回転</b>。向きで動ける方向が変わります。</li>
+      <li>相手の駒に乗ると<b>組み合い</b>。体力が0になった方が取られます。</li>
+      <li>組み合いの<b>隣</b>で、<b>そのマスへ動ける向き</b>の駒は自動で<b>助太刀</b>します（駒を選ぶと緑の「助」で場所がわかります）。</li>
+    </ul>
+    <!-- 後半：秒数など、遊んでいればわかるもの -->
+    <ul class="rules rules-sub">
+      <li>移動 <b data-t="MOVE_TIME">3秒</b>／回転 <b data-t="ROTATE_TIME">9秒</b></li>
+      <li>動き終わった駒は <b data-t="COOLDOWN">3秒</b> 休み（王は <b data-t="KING_COOLDOWN">6秒</b>）</li>
+      <li>同時に動かせる（回せる）のは <b>3駒</b> まで</li>
+      <li>敵陣（色のついた2段）で <b data-t="PROMOTE_TIME">6秒</b> 止まると成る</li>
+      <li>動き出した駒の元のマスには、その駒がマスを完全に離れるまで入れない（斜線の間）</li>
+    </ul>
+    <div class="diff">
+      <button data-diff="easy2">おそい<br>やさしい<small>1/2</small></button>
+      <button data-diff="easy">やさしい</button>
+      <button data-diff="normal" class="primary">ふつう</button>
+      <button data-diff="hard">つよい</button>
+      <button id="watch">COM対戦</button>
+    </div>
+  </div>
+</div>
+
+<!-- スマホを横にしたときは試合を止めて案内する -->
+<div id="portrait" class="overlay portrait" hidden>
+  <div class="panel"><p>スマホを縦にしてください</p></div>
+</div>
+
+<div id="result" class="overlay" hidden>
+  <div class="panel">
+    <h2 id="resultTitle"></h2>
+    <p id="resultTime" class="sub"></p>
+    <div class="diff"><button id="again" class="primary">もう一度</button></div>
+  </div>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>

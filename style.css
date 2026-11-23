@@ -1,0 +1,222 @@
+@font-face {
+  font-family: "Misaki";
+  src: url("misaki_gothic.woff2") format("woff2");
+  font-display: block;
+}
+/* 美咲フォントは8ドットの字。文字の大きさは8の倍数（8・16・24…）にそろえるとくっきり出る */
+/* 駒以外はレトロフューチャーの緑。自軍の青・相手の赤は、駒とどちらの軍かを示す所だけに使う */
+:root {
+  --g0: #010805;   /* いちばん暗い緑（背景） */
+  --g1: #04140b;   /* パネル */
+  --g2: #0b3a1f;   /* 暗い線 */
+  --g3: #1f8a48;   /* 中くらい */
+  --g4: #3fdc78;   /* 明るい緑 */
+  --g5: #b8ffd0;   /* いちばん明るい緑（文字） */
+  --line: rgba(63, 220, 120, 0.28);
+  --you: #59a8ff;
+  --cpu: #ff5c63;
+  --font: "Misaki", "Yu Gothic UI", "Meiryo", sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background:
+    radial-gradient(ellipse at 50% 40%, rgba(63, 220, 120, 0.12), transparent 65%),
+    linear-gradient(var(--g0), var(--g0));
+  color: var(--g5);
+  font-family: var(--font);
+  font-size: 16px;
+  font-weight: normal;
+  font-synthesis: none;
+  -webkit-font-smoothing: none;
+  min-height: 100svh;
+}
+/* 画面全体にうっすら走査線 */
+body::after {
+  content: "";
+  position: fixed; inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0) 0 2px, rgba(0, 0, 0, 0.22) 2px 3px);
+  z-index: 10;
+}
+b, strong, h1, h2 { font-weight: normal; }
+/* タイトルの「天」「棋」のドット絵。美咲の字と同じ大きさ・字間で並べる */
+.glyph {
+  width: 1em; height: 1em;
+  vertical-align: text-top;
+  fill: currentColor;
+  shape-rendering: crispEdges;
+  margin-right: var(--ls, 0);
+  filter: drop-shadow(0 0 5px var(--g4));
+}
+main {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 10px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+header { text-align: center; }
+header h1 {
+  font-size: 32px;
+  --ls: 0.5em;
+  letter-spacing: var(--ls);
+  margin: 4px 0 0 0.5em;
+  color: var(--g5);
+  text-shadow: 0 0 10px var(--g4);
+}
+header .en {
+  font-size: 8px;
+  letter-spacing: 0.6em;
+  color: var(--g3);
+  margin-left: 0.6em;
+}
+.boardwrap { position: relative; margin-bottom: 10px; }
+#board {
+  display: block;
+  /* 手前に倒すと下の辺が広がる（30度で約13%）ので、横幅に余裕をとる */
+  width: min(calc((100vw - 32px) * 0.86), 580px, calc(100svh - 230px));
+  min-width: 260px;
+  aspect-ratio: 1;
+  border: 2px solid var(--g4);
+  border-radius: 2px;
+  /* 盤の厚み・光（盤といっしょに倒れる） */
+  box-shadow:
+    0 0 0 1px rgba(63, 220, 120, 0.15),
+    0 10px 0 #06301a,
+    0 10px 0 1px rgba(63, 220, 120, 0.45),
+    0 0 40px rgba(63, 220, 120, 0.25);
+  transform-origin: 50% 50%;
+  touch-action: manipulation;
+  user-select: none;
+}
+.hud {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  font-size: 16px;
+  width: 100%;
+  flex-wrap: wrap;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  background: rgba(4, 20, 11, 0.75);
+}
+.hud .who { letter-spacing: 0.1em; min-width: 4em; }
+.hud.you { border-left: 3px solid var(--you); }
+.hud.cpu { border-left: 3px solid var(--cpu); }
+.hud.you .who, .hud.you .hands { color: var(--you); }
+.hud.cpu .who, .hud.cpu .hands { color: var(--cpu); }
+.hud .label { color: var(--g3); }
+.hud .hands { letter-spacing: 2px; text-shadow: 0 0 8px currentColor; }
+.hud .caps { color: var(--g5); }
+.controls { display: flex; gap: 10px; }
+button {
+  font: inherit;
+  font-size: 16px;
+  padding: 8px 14px;
+  border-radius: 2px;
+  border: 1px solid var(--g3);
+  background: rgba(4, 20, 11, 0.85);
+  color: var(--g4);
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, color 0.15s;
+}
+button:hover:not(:disabled) {
+  border-color: var(--g4);
+  color: var(--g5);
+  box-shadow: 0 0 12px rgba(63, 220, 120, 0.5);
+}
+button:disabled { opacity: 0.3; cursor: default; }
+button.primary {
+  background: rgba(63, 220, 120, 0.15);
+  border-color: var(--g4);
+  color: var(--g5);
+  box-shadow: 0 0 14px rgba(63, 220, 120, 0.4);
+}
+/* 回すボタンは大きく（指で押しやすく） */
+#rotL, #rotR {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  font-size: 24px; padding: 14px 22px; min-height: 72px;
+  touch-action: manipulation;
+}
+.rot { width: 36px; height: 36px; flex: none; }
+.rot path { fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: butt; }
+.rot polygon { fill: currentColor; }
+@media (max-width: 480px) {
+  .controls { width: 100%; }
+  #rotL, #rotR { flex: 1 1 0; font-size: 16px; padding: 12px 8px; gap: 6px; }
+  .rot { width: 32px; height: 32px; }
+}
+/* 指で操作する端末ではキーの表示は出さない */
+@media (pointer: coarse) { kbd { display: none; } }
+.portrait { z-index: 20; }
+.portrait .panel { text-align: center; font-size: 24px; padding: 32px 16px; }
+.portrait p { margin: 0; }
+kbd { font-size: 8px; color: var(--g3); font-family: inherit; }
+.diff small { display: block; font-size: 16px; color: var(--g3); margin-top: 4px; }
+.hint { margin: 0; font-size: 16px; color: var(--g3); min-height: 1.4em; text-align: center; }
+.toast {
+  position: absolute; left: 50%; top: 45%;
+  transform: translate(-50%, -50%);
+  background: rgba(1, 8, 5, 0.9); color: var(--g5);
+  border: 1px solid var(--g4);
+  box-shadow: 0 0 14px rgba(63, 220, 120, 0.45);
+  padding: 8px 14px; border-radius: 2px; font-size: 16px;
+  opacity: 0; pointer-events: none; transition: opacity 0.2s;
+  white-space: nowrap;
+}
+.toast.show { opacity: 1; }
+.count {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 128px;
+  color: var(--g5);
+  text-shadow: 0 0 12px var(--g4), 0 0 36px var(--g4);
+  pointer-events: none; opacity: 0; transition: opacity 0.2s;
+}
+@media (max-width: 480px) { .count { font-size: 96px; } }
+.count.show { opacity: 1; }
+.overlay {
+  position: fixed; inset: 0;
+  background: rgba(1, 8, 5, 0.82);
+  backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+}
+.overlay[hidden] { display: none; }
+.panel {
+  background: var(--g1);
+  border: 1px solid var(--line);
+  border-top: 2px solid var(--g4);
+  box-shadow: 0 0 40px rgba(63, 220, 120, 0.18);
+  padding: 22px 22px;
+  max-width: 520px;
+  width: 100%;
+  max-height: 100%;
+  overflow: auto;
+}
+.panel h2 {
+  font-size: 40px;
+  --ls: 0.4em;
+  letter-spacing: var(--ls); margin: 0 0 0 0.4em; text-align: center;
+  color: var(--g5);
+  text-shadow: 0 0 12px var(--g4);
+}
+.sub { text-align: center; color: var(--g3); margin: 6px 0 16px; font-size: 16px; }
+/* ルール説明は読みやすさ優先で、駒と同じ M PLUS 1 Code（ドット書体ではない） */
+.rules {
+  padding-left: 1.2em; margin: 0 0 18px;
+  font-family: "M PLUS 1 Code", "Yu Gothic UI", "Meiryo", sans-serif;
+  font-size: 15px; line-height: 1.75; color: #a6ecbf;
+  -webkit-font-smoothing: auto;
+}
+.rules li { margin-bottom: 2px; }
+/* 後半（秒数など）は1行あけて、少し控えめに */
+.rules-sub { margin-top: 1.4em; font-size: 14px; color: #7fcf9c; }
+.rules b { font-weight: 700; color: var(--g5); text-shadow: 0 0 6px var(--g4); }
+/* 難しさは5段階を1列に（左ほどやさしい） */
+.diff { display: flex; gap: 6px; justify-content: center; align-items: stretch; }
+.diff button { flex: 1 1 0; min-width: 0; padding: 8px 4px; line-height: 1.3; }
+#result .diff button { flex: 0 0 auto; padding: 8px 14px; }
