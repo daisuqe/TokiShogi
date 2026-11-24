@@ -280,7 +280,6 @@ function startGrapple(a, d) {
   // 乗った瞬間の一撃：火花
   const pos = grapplePos(g);
   hitEffect(d, pos.dx, pos.dy, CLR.side[a.side], 1.6);
-  popNumber(pos.dx, pos.dy, -CFG.HIT);
   if (d.hp <= 0) resolve(g, true);
 }
 
@@ -318,9 +317,7 @@ function shoot(x0, y0, x1, y1, color, target, onHit) {
 }
 function damagePiece(g, p, n) {
   if (!G.grapples.includes(g)) return;
-  const pos = grapplePos(g);
   const isDef = p === g.def;
-  popNumber((isDef ? pos.dx : pos.ax) + (Math.random() - 0.5) * 0.3, isDef ? pos.dy : pos.ay, -n);
   p.hp = Math.max(0, p.hp - n);
   if (p.hp <= 0) resolve(g, isDef); // 乗られた駒が0なら乗った側の勝ち、乗った駒が0なら乗られた側の勝ち
 }
@@ -1003,9 +1000,9 @@ function drawHpBar(cx, y, value, side) {
   const v = Math.max(0, Math.min(100, Math.round(value)));
   const w = cs * 0.72, h = 9;
   ctx.save();
-  ctx.font = `700 ${Math.round(cs * 0.24)}px ${CLR.pieceFont}`;
+  ctx.font = `700 ${Math.round(cs * 0.48)}px ${CLR.pieceFont}`;
   const tw = ctx.measureText('100').width;
-  const x = cx - (w + 4 + tw) / 2;
+  const x = Math.max(4, Math.min(cx - (w + 4 + tw) / 2, canvas.clientWidth - w - 9 - tw)); // 盤の外へ切れないように
   ctx.fillStyle = '#000';
   ctx.fillRect(x - 2, y - 2, w + 4, h + 4);
   ctx.fillStyle = 'rgba(255,255,255,0.12)';
@@ -1015,7 +1012,7 @@ function drawHpBar(cx, y, value, side) {
   ctx.fillRect(x, y, w * v / 100, h);
   ctx.shadowBlur = 0;
   ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-  ctx.lineWidth = 3; ctx.strokeStyle = '#000'; ctx.lineJoin = 'round';
+  ctx.lineWidth = 5; ctx.strokeStyle = '#000'; ctx.lineJoin = 'round';
   ctx.strokeText(v, x + w + 5, y + h / 2 + 1);
   ctx.fillStyle = CLR.edge[side];
   ctx.fillText(v, x + w + 5, y + h / 2 + 1);
@@ -1157,13 +1154,6 @@ function draw() {
     ctx.fillStyle = p.side === 0 ? `rgba(89,168,255,${0.08 + 0.22 * f})` : `rgba(255,92,99,${0.08 + 0.22 * f})`;
     ctx.fillRect(p.tx * cs, p.ty * cs, cs, cs);
     drawBrackets(p.tx, p.ty, col, 3, cs * 0.18, 2);
-    const x1 = cellC(p.fx), y1 = cellC(p.fy), x2 = cellC(p.tx), y2 = cellC(p.ty);
-    const a = Math.atan2(y2 - y1, x2 - x1);
-    drawArrow(x1, y1, x2 - Math.cos(a) * cs * 0.3, y2 - Math.sin(a) * cs * 0.3, col, 3, cs * 0.22);
-    // 行き先に相手の駒がいれば照準
-    if (occupants(p.tx, p.ty).some(q => q.side !== p.side)) {
-      drawReticle(x2, y2, cs * 0.4 + cs * 0.04 * pulse(8), col);
-    }
   }
 
   // 助太刀の線と光
@@ -1260,6 +1250,33 @@ function draw() {
     ctx.beginPath(); ctx.ellipse(px, py + cs * 0.3, cs * 0.3, cs * 0.1, 0, 0, Math.PI * 2); ctx.fill();
     drawPiece(p, px, py - lift * cs * 0.5, p.dir * Math.PI / 2, 1 + lift, 0.95, null, true);
     drawSmallHp(p, px, py);
+  }
+
+  // 移動の矢印・照準・回転の矢印：駒の上に、駒の厚さ1.5個分の高さで描く
+  const lift = cs * 0.84 * 0.84 * PIECE_THICK * Math.tan(VIEW.TILT * Math.PI / 180) * 1.5;
+  for (const p of G.pieces) {
+    const col = CLR.side[p.side];
+    if (p.state === 'moving') {
+      const x1 = cellC(p.fx), y1 = cellC(p.fy) - lift, x2 = cellC(p.tx), y2 = cellC(p.ty) - lift;
+      const a = Math.atan2(y2 - y1, x2 - x1);
+      drawArrow(x1, y1, x2 - Math.cos(a) * cs * 0.3, y2 - Math.sin(a) * cs * 0.3, col, 6, cs * 0.374);
+      // 行き先に相手の駒がいれば照準
+      if (occupants(p.tx, p.ty).some(q => q.side !== p.side)) drawReticle(x2, y2, cs * 0.4 + cs * 0.04 * pulse(8), col);
+    } else if (p.state === 'rotating') {
+      // 駒の先端が動く90度ぶんの弧
+      const cx = cellC(p.x), cy = cellC(p.y) - lift, r = cs * 0.5;
+      const a0 = p.dir * Math.PI / 2 - Math.PI / 2, a1 = a0 + p.rotD * Math.PI / 2;
+      ctx.save();
+      ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 6; ctx.lineCap = 'round';
+      ctx.shadowColor = col; ctx.shadowBlur = cs * 0.2;
+      ctx.beginPath(); ctx.arc(cx, cy, r, a0, a1, p.rotD < 0); ctx.stroke();
+      // 矢じり：弧の終わりで、進む向きへ
+      const ex = cx + r * Math.cos(a1), ey = cy + r * Math.sin(a1);
+      const tg = a1 + p.rotD * Math.PI / 2, h = cs * 0.27;
+      ctx.translate(ex, ey); ctx.rotate(tg);
+      ctx.beginPath(); ctx.moveTo(h, 0); ctx.lineTo(-h * 0.6, h * 0.7); ctx.lineTo(-h * 0.6, -h * 0.7); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
   }
 
   // ▲の弾（進む向きを向く）
