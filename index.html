@@ -23,7 +23,8 @@
 <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-title" content="刻将棋">
 <link rel="stylesheet" href="font.css?v=20261125b">
-<link rel="stylesheet" href="style.css?v=20261125a">
+<link rel="stylesheet" href="font-misaki.css?v=20261125a">
+<link rel="stylesheet" href="style.css?v=20261125c">
 </head>
 <body>
 <main>
@@ -54,6 +55,7 @@
     <!-- 90度回転の矢印：上向きから右向き（左は左右反転して、上向きから左向き）へ曲がるカーブ -->
     <button id="rotL" disabled><svg class="rot" viewBox="0 0 24 24" aria-hidden="true"><g transform="translate(24 0) scale(-1 1)"><path d="M6 21 V12 A7 7 0 0 1 13 5 H15"/><polygon points="14.5,0.5 22.5,5 14.5,9.5"/></g></svg>左へ回す <kbd>Q</kbd></button>
     <button id="rotR" disabled>右へ回す<svg class="rot" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 21 V12 A7 7 0 0 1 13 5 H15"/><polygon points="14.5,0.5 22.5,5 14.5,9.5"/></svg><kbd>E</kbd></button>
+    <button id="promoBtn" disabled>成り <kbd>R</kbd></button>
   </div>
   <p id="hint" class="hint"></p>
 </main>
@@ -76,9 +78,9 @@
     <!-- 後半：秒数など、遊んでいればわかるもの -->
     <ul class="rules rules-sub">
       <li>指示は <b data-t="ACT_GAP">3秒</b> に1回</li>
-      <li>移動、回転 <b data-t="MOVE_TIME">3秒</b></li>
-      <li>移動、回転後は <b data-t="COOLDOWN">3秒</b> 動けない</li>
-      <li>敵陣（色のついた2段）で <b data-t="PROMOTE_TIME">3秒</b> 止まると成る</li>
+      <li>移動、回転、成り <b data-t="MOVE_TIME">3秒</b></li>
+      <li>移動、回転、成り後は <b data-t="COOLDOWN">3秒</b> 動けない</li>
+      <li>敵陣（色のついた2段）で、成りボタンで成る</li>
       <li>動き出した駒の元のマスには、その駒がマスを離れるまで入れない</li>
     </ul>
     <div class="diff">
@@ -148,6 +150,6 @@ daisuqe が保有します。著作権者の事前の書面による許可なく
   </div>
 </div>
 
-<script src="game.js?v=20261125b"></script>
+<script src="game.js?v=20261125f"></script>
 </body>
 </html>

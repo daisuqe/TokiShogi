@@ -8,7 +8,7 @@ const CFG = {
   MOVE_TIME: 1 * U,            // 移動（どの駒も同じ）          3秒
   ROTATE_TIME: 1 * U,          // 90度回転（成った駒も同じ）      3秒
   COOLDOWN: 1 * U,             // 動き・回転が終わったあとの休み  3秒
-  PROMOTE_TIME: 1 * U,         // 敵陣で止まっていると成るまで    3秒
+  PROMOTE_TIME: 1 * U,         // 成りボタンを押してから成るまで  3秒
   COUNTDOWN: 2 * U,            // 試合前のカウントダウン          6秒
   TICK: U / 3,                 // 組み合いの1拍（▲が飛ぶ間隔）    1秒
   ACT_GAP: 1 * U,              // 動かす・回す指示は、この間隔で1回だけ（敵味方それぞれ）3秒
@@ -100,7 +100,7 @@ function addPiece(side, type, x, y, dir) {
   if (!type) return;
   G.pieces.push({
     id: G.nextId++, side, type, x, y, dir, promoted: false, hp: 100,
-    state: 'idle', promoT: 0, cool: 0, fx: 0, fy: 0, tx: 0, ty: 0, t: 0, dur: 0, rotD: 0,
+    state: 'idle', cool: 0, fx: 0, fy: 0, tx: 0, ty: 0, t: 0, dur: 0, rotD: 0,
   });
 }
 
@@ -220,8 +220,20 @@ function startMove(p, t) {
   p.state = 'moving';
   p.noticed = undefined;
   p.fx = p.x; p.fy = p.y; p.tx = t.x; p.ty = t.y;
-  p.t = 0; p.promoT = 0;
+  p.t = 0;
   p.dur = CFG.MOVE_TIME;
+}
+// 成れる駒：敵陣（奥の2段）で、動いておらず、休みでもない、まだ成っていない駒（金と王は成れない）
+function inPromoZone(p) { return p.side === 0 ? p.y <= 1 : p.y >= CFG.H - 2; }
+function canPromote(p) {
+  return !p.promoted && p.type !== 'OU' && p.type !== 'KI' && p.state === 'idle' && !(p.cool > 0) && inPromoZone(p);
+}
+// 成りも1手。回転と同じく、3秒かけて成り、そのあと3秒休む
+function startPromote(p) {
+  G.actAt[p.side] = G.time + CFG.ACT_GAP;
+  G.lastAct[p.side] = G.time;
+  p.state = 'promoting';
+  p.t = 0; p.dur = CFG.PROMOTE_TIME;
 }
 function startRotate(p, d) {
   G.actAt[p.side] = G.time + CFG.ACT_GAP; // 回し始めるのも1手。回転はそのまま続く
@@ -385,25 +397,18 @@ function update(realDt) {
     } else if (p.state === 'rotating') {
       p.t += dt;
       if (p.t >= p.dur) { p.dir = (p.dir + p.rotD + 4) % 4; p.state = 'idle'; p.cool = cooldownFor(p); } // 回したあとも、動いたあとと同じ休み
+    } else if (p.state === 'promoting') {
+      p.t += dt;
+      if (p.t >= p.dur) {
+        p.promoted = true; p.state = 'idle'; p.cool = cooldownFor(p);
+        addFx(p.x, p.y, '成', '#c98cff');
+      }
     }
   }
   if (G.over) return;
 
   updateGrapples(dt);
   if (G.over) return;
-
-  // 成り：敵陣で止まっていると溜まる
-  for (const p of G.pieces) {
-    if (p.promoted || p.type === 'OU' || p.type === 'KI') continue;
-    const inZone = p.side === 0 ? p.y <= 1 : p.y >= CFG.H - 2;
-    if (p.state === 'moving' || !inZone) { p.promoT = 0; continue; }
-    if (p.state === 'grappled') continue;
-    p.promoT += dt;
-    if (p.promoT >= CFG.PROMOTE_TIME) {
-      p.promoted = true;
-      addFx(p.x, p.y, '成', '#c98cff');
-    }
-  }
 
   for (const f of G.fx) f.t += realDt;
   G.fx = G.fx.filter(f => f.t < 1.2);
@@ -490,7 +495,7 @@ function cpuThink(S = 1, dk = G.diff, sync = false) {
   const attackedMap = () => {
     const m = new Map();
     for (const e of G.pieces) {
-      if (e.side !== O || (e.state !== 'idle' && e.state !== 'rotating')) continue;
+      if (e.side !== O || (e.state !== 'idle' && e.state !== 'rotating' && e.state !== 'promoting')) continue;
       for (const t of legalTargets(e)) if (t.cap) m.set(key(t.x, t.y), (m.get(key(t.x, t.y)) || 0) + 1);
     }
     return m;
@@ -568,9 +573,9 @@ function cpuThink(S = 1, dk = G.diff, sync = false) {
   // そこで「動いている間の形」と「着いたあとの形」の2つを見て、平均で点数をつける
   for (const p of mine) {
     if (!readyP(p) && !(p.state === 'grappled' && G.grapples.some(g => g.atk === p) && !(p.cool > 0))) continue;
-    const sx = p.x, sy = p.y, sst = p.state, sd = p.dir;
+    const sx = p.x, sy = p.y, sst = p.state, sd = p.dir, spr = p.promoted;
     const sv = { fx: p.fx, fy: p.fy, tx: p.tx, ty: p.ty, t: p.t, dur: p.dur };
-    const restore = () => { p.x = sx; p.y = sy; p.state = sst; p.dir = sd; Object.assign(p, sv); };
+    const restore = () => { p.x = sx; p.y = sy; p.state = sst; p.dir = sd; p.promoted = spr; Object.assign(p, sv); };
     // 動かす手
     for (const o of legalTargets(p)) {
       // 飛んでいる間：その駒は、狙われないが、助太刀もできない
@@ -598,19 +603,33 @@ function cpuThink(S = 1, dk = G.diff, sync = false) {
       cands.push({ p, o, score: 0.5 * (eNow - base) + 0.5 * (eArr - base) + imm + noise() });
     }
     // 回す手：回っている間は助太刀できず、終わるのは6秒後
+    // 回しても動ける先が増えない回転（壁を向く・形が同じ）は、そもそも候補にしない。点数がプラスにならない回転も出さない
     if (readyP(p)) for (const d of [-1, 1]) {
+      if (!rotMeaningful(p, d)) continue;
       p.state = 'rotating';
       const eNow = evaluate();
       p.state = 'idle'; p.dir = (p.dir + d + 4) % 4;
       const eArr = evaluate();
       restore();
-      cands.push({ p, rot: d, score: 0.5 * (eNow - base) + 0.5 * (eArr - base) - 1.5 + noise() });
+      const raw = 0.5 * (eNow - base) + 0.5 * (eArr - base) - 1.5;
+      if (raw <= 0) continue;
+      cands.push({ p, rot: d, score: raw + noise() });
+    }
+    // 成る手：敵陣で成れるなら。成っている間は助太刀できないが、強い駒になる
+    if (canPromote(p)) {
+      p.state = 'promoting';
+      const eNow = evaluate();
+      p.state = 'idle'; p.promoted = true;
+      const eArr = evaluate();
+      restore();
+      const bonus = { FU: 6, KY: 6, KE: 7, GI: 5, HI: 12, KA: 12 }[p.type] || 5;
+      cands.push({ p, promote: true, score: 0.5 * (eNow - base) + 0.5 * (eArr - base) + bonus + noise() });
     }
   }
 
   // 先読みする強さ：評価の高い候補と「何もしない」を、実際のルールで数秒先まで何回か試して選ぶ
   if (D.roll && !G.sim) {
-    const applyPick = pick => { if (pick) { if (pick.rot) startRotate(pick.p, pick.rot); else startMove(pick.p, pick.o); } };
+    const applyPick = pick => { if (pick) { if (pick.promote) startPromote(pick.p); else if (pick.rot) startRotate(pick.p, pick.rot); else startMove(pick.p, pick.o); } };
     if (sync) { applyPick(pickByRollouts(S, cands, D.roll)); return; }
     // 画面がカクつかないように、数回に分けて考える。考え終わったときに、まだ手が通るか確かめてから出す
     if (G.thinking[S]) return;
@@ -622,7 +641,8 @@ function cpuThink(S = 1, dk = G.diff, sync = false) {
       if (!pick || game.over || game.paused || !slotReady(S)) return;
       const p = pick.p;
       if (!game.pieces.includes(p) || (p.cool > 0)) return;
-      if (pick.rot) { if (p.state !== 'idle') return; }
+      if (pick.promote) { if (!canPromote(p)) return; }
+      else if (pick.rot) { if (p.state !== 'idle') return; }
       else {
         const leaving = p.state === 'grappled' && game.grapples.some(g => g.atk === p);
         if (p.state !== 'idle' && !leaving) return;
@@ -638,7 +658,27 @@ function cpuThink(S = 1, dk = G.diff, sync = false) {
   const idle = G.time - G.lastAct[S];
   const need = Math.max(0.5, D.act * (1 - idle / 9));
   if (!best || best.score < need) return;
-  if (best.rot) startRotate(best.p, best.rot); else startMove(best.p, best.o);
+  if (best.promote) startPromote(best.p); else if (best.rot) startRotate(best.p, best.rot); else startMove(best.p, best.o);
+}
+// 向き dir で、盤の上で届くマス（駒や壁のじゃまを考えない）の集まり
+function reachSet(p, dir) {
+  const ms = moveSet(p), set = new Set();
+  for (const [sx, sy] of ms.steps) {
+    const [dx, dy] = rot(sx, sy, dir);
+    if (inB(p.x + dx, p.y + dy)) set.add((p.x + dx) * 16 + p.y + dy);
+  }
+  for (const [sx, sy] of ms.rays) {
+    const [dx, dy] = rot(sx, sy, dir);
+    for (let x = p.x + dx, y = p.y + dy; inB(x, y); x += dx, y += dy) set.add(x * 16 + y);
+  }
+  return set;
+}
+// 回す意味があるか：回したあとに、今は届かないマスへ届くようになる回転だけ意味がある
+// （壁を向く、飛車や王のように形が同じ、いまより狭くなるだけ、は意味がない）
+function rotMeaningful(p, d) {
+  const now = reachSet(p, p.dir), nxt = reachSet(p, (p.dir + d + 4) % 4);
+  for (const k of nxt) if (!now.has(k)) return true;
+  return false;
 }
 
 // ===== COM の先読み：盤をコピーして、実際のルールで数秒先まで試す =====
@@ -681,6 +721,8 @@ function rollPolicy(S) {
     if (s > bs) { bs = s; best = [p, o]; }
   }
   if (best) { startMove(best[0], best[1]); return; }
+  const pr = mine.filter(canPromote);
+  if (pr.length && Math.random() < 0.6) { startPromote(pr[Math.floor(Math.random() * pr.length)]); return; }
   if (Math.random() < 0.5) return;
   const adv = [];
   for (const p of mine) { if (p.type === 'OU') continue; for (const o of legalTargets(p)) if (!o.cap && (o.y - p.y) * fwd >= 0) adv.push([p, o]); }
@@ -699,7 +741,7 @@ function rollout(S, cand, horizon) {
   const c = cloneForRollout();
   G = c.g;
   try {
-    if (cand) { const p = c.map.get(cand.p); if (cand.rot) startRotate(p, cand.rot); else startMove(p, cand.o); }
+    if (cand) { const p = c.map.get(cand.p); if (cand.promote) startPromote(p); else if (cand.rot) startRotate(p, cand.rot); else startMove(p, cand.o); }
     const T = [0.4, 0.4];
     const end = G.time + horizon, dt = 0.25;
     while (!G.over && G.time < end) {
@@ -835,7 +877,11 @@ const cellC = v => (v + 0.5) * cs;
 const fpx = n => `700 ${Math.max(8, Math.round(n))}`;  // 文字の大きさ（太字）
 const pulse = (speed = 4) => 0.5 + 0.5 * Math.sin(performance.now() / 1000 * speed);
 
-function drawPiece(p, px, py, ang, scale, alpha = 1, glow = null) {
+// bright：動いている・回っている・成っている・組み合いで乗っている駒は、上面を明るく見せる
+// 暗い色と明るい色の中間を、少し白寄りにした色（光らせはしない）
+const TOP_BRIGHT = ['#2f6fe6', '#e03a50'];
+const EDGE_BRIGHT = ['#5b9aff', '#ff6070'];
+function drawPiece(p, px, py, ang, scale, alpha = 1, glow = null, bright = false) {
   const s = cs * 0.84 * scale;
   const shape = () => {
     ctx.beginPath();
@@ -856,8 +902,9 @@ function drawPiece(p, px, py, ang, scale, alpha = 1, glow = null) {
   ctx.save();
   ctx.globalAlpha = alpha;
   if (glow) { ctx.shadowColor = glow; ctx.shadowBlur = cs * 0.35; }
-  ctx.fillStyle = CLR.edge[p.side];
-  ctx.strokeStyle = CLR.edge[p.side];
+  const edgeC = bright ? EDGE_BRIGHT[p.side] : CLR.edge[p.side];
+  ctx.fillStyle = edgeC;
+  ctx.strokeStyle = edgeC;
   ctx.lineWidth = outline;
   ctx.lineJoin = 'miter';
   for (let i = 0; i <= steps; i++) {
@@ -877,12 +924,13 @@ function drawPiece(p, px, py, ang, scale, alpha = 1, glow = null) {
   ctx.rotate(ang);
   ctx.globalAlpha = alpha;
   shape();
-  ctx.fillStyle = CLR.top[p.side];
+  ctx.fillStyle = bright ? TOP_BRIGHT[p.side] : CLR.top[p.side];
   ctx.fill();
+  ctx.shadowBlur = 0;
   ctx.lineWidth = outline;
-  ctx.strokeStyle = CLR.edge[p.side];
+  ctx.strokeStyle = edgeC;
   ctx.stroke();
-  ctx.fillStyle = p.promoted ? CLR.ptext : CLR.text[p.side];
+  ctx.fillStyle = p.promoted ? CLR.ptext : bright ? '#ffffff' : CLR.text[p.side];
   ctx.font = `700 ${Math.round(s * 0.52)}px ${CLR.pieceFont}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -977,7 +1025,7 @@ function drawRing(px, py, frac, color) {
   ctx.beginPath();
   ctx.arc(px, py, cs * 0.47, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac);
   ctx.strokeStyle = color;
-  ctx.lineWidth = 3;
+  ctx.lineWidth = 6;
   ctx.stroke();
 }
 // 矢印（x1,y1 → x2,y2）
@@ -1084,24 +1132,6 @@ function draw() {
     ctx.fillStyle = `rgba(93,255,149,${0.12 + 0.12 * pulse()})`;
     ctx.fillRect(sel.x * cs, sel.y * cs, cs, cs);
     drawBrackets(sel.x, sel.y, CLR.sel, 2, cs * 0.24, 3);
-    for (const t of legalTargets(sel)) {
-      const tx = cellC(t.x), ty = cellC(t.y);
-      if (!t.cap && helpsAt(sel, t.x, t.y)) {
-        // ここへ動けば助太刀になる
-        ctx.beginPath();
-        ctx.arc(tx, ty, cs * 0.28, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(62,224,143,0.9)'; ctx.fill();
-        ctx.fillStyle = '#0a0c0f';
-        ctx.font = `${fpx(cs * 0.3)}px ${CLR.font}`;
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText('助', tx, ty + 1);
-      } else if (t.cap) {
-        drawReticle(tx, ty, cs * 0.36, '#ff4757');
-      } else {
-        ctx.fillStyle = 'rgba(93,255,149,0.8)';
-        ctx.fillRect(tx - cs * 0.06, ty - cs * 0.06, cs * 0.12, cs * 0.12);
-      }
-    }
   }
 
   // 抜けきっていない元のマス：まだ入れないことを示す斜線
@@ -1164,17 +1194,40 @@ function draw() {
 
   // 盤上の駒
   for (const p of G.pieces) {
-    if (p.state !== 'idle' && p.state !== 'rotating') continue;
+    if (p.state !== 'idle' && p.state !== 'rotating' && p.state !== 'promoting') continue;
     const px = cellC(p.x), py = cellC(p.y);
     let ang = p.dir * Math.PI / 2;
     if (p.state === 'rotating') ang += p.rotD * (p.t / p.dur) * Math.PI / 2;
     const isSel = p === sel;
-    // 選んだ駒は少し浮かせて光らせる
-    drawPiece(p, px, py - (isSel ? cs * 0.08 : 0), ang, isSel ? 1.06 : 1, 1, isSel ? CLR.sel : null);
-    if (p.state === 'rotating') drawRing(px, py, p.t / p.dur, CLR.side[p.side]);
-    if (p.cool > 0) drawRing(px, py, p.cool / (cooldownFor(p) || 1), 'rgba(230,240,250,0.95)');
+    // 選んだ駒は少し浮かせて光らせる。回転中・成り中の駒は明るく（そのあいだ、休みのゲージは出さない）
+    const acting = p.state !== 'idle';
+    drawPiece(p, px, py - (isSel ? cs * 0.08 : 0), ang, isSel ? 1.06 : 1, 1, isSel ? CLR.sel : null, acting);
+    if (p.cool > 0 && !acting) drawRing(px, py, p.cool / (cooldownFor(p) || 1), 'rgba(230,240,250,0.95)');
     drawSmallHp(p, px, py);
-    if (p.promoT > 0) drawBar(px, py - cs * 0.47, cs * 0.7, 3, p.promoT / CFG.PROMOTE_TIME, '#c98cff');
+  }
+
+  // 行き先の候補：太めのリング（駒の上に重ねて、見失わないように）
+  if (sel) {
+    for (const t of legalTargets(sel)) {
+      const tx = cellC(t.x), ty = cellC(t.y);
+      const help = !t.cap && helpsAt(sel, t.x, t.y);
+      const col = t.cap ? '#ff4757' : '#5dff95';
+      const r = t.cap ? cs * 0.43 : help ? cs * 0.27 : cs * 0.2;
+      const lw = cs * (help ? 0.1 : 0.09);
+      ctx.save();
+      ctx.globalAlpha = 0.42;
+      ctx.beginPath(); ctx.arc(tx, ty, r, 0, Math.PI * 2);
+      ctx.lineWidth = lw + 4; ctx.strokeStyle = 'rgba(0,0,0,0.75)'; ctx.stroke();   // 暗い縁取り
+      ctx.lineWidth = lw; ctx.strokeStyle = col; ctx.stroke();
+      if (help) {
+        // ここへ動けば助太刀になる
+        ctx.fillStyle = col;
+        ctx.font = `${fpx(cs * 0.24)}px ${CLR.font}`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('助', tx, ty + 1);
+      }
+      ctx.restore();
+    }
   }
 
   // 助太刀している駒に「助」の札
@@ -1190,7 +1243,7 @@ function draw() {
     // 奥（上）の駒を先に、手前（下）の駒をあとに描いて重ねる。乗った駒は光る
     // 乗られた駒を先（下の層）、乗った駒をあと（上の層）に描いて重ねる。乗った駒は光る
     drawPiece(g.def, pos.dx * cs, pos.dy * cs, g.def.dir * Math.PI / 2, 0.88);
-    drawPiece(g.atk, pos.ax * cs, pos.ay * cs, g.atk.dir * Math.PI / 2, 0.88, 1, CLR.side[g.atk.side]);
+    drawPiece(g.atk, pos.ax * cs, pos.ay * cs, g.atk.dir * Math.PI / 2, 0.88, 1, null, true);
     // 体力は細い線にしてマスの下端に。増減の札はマスの右上の角に（駒をなるべく隠さない）
     // 体力バー：上に相手（赤）、下に自分（青）。数字つき
     drawHpBar(px, (g.y + 0.5 + G_TOP - 0.42) * cs - 8, grappleValue(g, 1), 1);
@@ -1205,7 +1258,7 @@ function draw() {
     const lift = p.type === 'KE' && !p.promoted ? 0.3 * Math.sin(Math.PI * f) : 0.08;
     ctx.fillStyle = 'rgba(63,220,120,0.12)';
     ctx.beginPath(); ctx.ellipse(px, py + cs * 0.3, cs * 0.3, cs * 0.1, 0, 0, Math.PI * 2); ctx.fill();
-    drawPiece(p, px, py - lift * cs * 0.5, p.dir * Math.PI / 2, 1 + lift, 0.95, CLR.side[p.side]);
+    drawPiece(p, px, py - lift * cs * 0.5, p.dir * Math.PI / 2, 1 + lift, 0.95, null, true);
     drawSmallHp(p, px, py);
   }
 
@@ -1317,15 +1370,18 @@ function updateHud() {
     if (sel.cool > 0) hint = `休み中（あと${Math.ceil(sel.cool / G.speed)}秒）`;
     else if (sel.state === 'grappled') hint = '行き先を押すと組み合いから離れます';
     else if (sel.state === 'rotating') hint = '回転中。行き先を押すと回転をやめて動きます';
+    else if (sel.state === 'promoting') hint = '成っています';
+    else if (canPromote(sel)) hint = '成りボタンで成れます';
     else if (legalTargets(sel).some(t => !t.cap && helpsAt(sel, t.x, t.y))) hint = '緑の「助」へ動くと助太刀になります';
     else hint = `行き先を押すか、回すボタンで向きを変える（${Math.round(CFG.ROTATE_TIME / G.speed)}秒）`;
   }
-  const cd = G.countdown > 0 ? String(Math.ceil(G.countdown)) : G.startFlash > 0 ? '始め!' : '';
+  const cd = G.countdown > 0 ? String(Math.ceil(G.countdown)) : G.startFlash > 0 ? 'START!' : '';
   if (cd !== $('count').textContent) {
     $('count').textContent = cd;
     $('count').classList.toggle('show', cd !== '');
+    $('count').classList.toggle('word', cd === 'START!');
   }
-  const key = [hands(0), hands(1), caps(0), caps(1), hint, sel ? sel.state : ''].join('|');
+  const key = [hands(0), hands(1), caps(0), caps(1), hint, sel ? sel.state : '', sel ? (sel.promoted ? 1 : 0) + ',' + (sel.cool > 0 ? 1 : 0) + ',' + sel.y : ''].join('|');
   if (key === hudCache) return;
   hudCache = key;
   $('handsYou').innerHTML = hands(0);
@@ -1336,6 +1392,7 @@ function updateHud() {
   const canRot = !G.watch && sel && sel.state === 'idle' && !(sel.cool > 0);
   $('rotL').disabled = !canRot;
   $('rotR').disabled = !canRot;
+  $('promoBtn').disabled = !(!G.watch && sel && canPromote(sel));
 }
 
 let toastTimer = 0;
@@ -1379,6 +1436,17 @@ function playerRotate(d) {
   if (!canAct(p)) { toast(`次の手まであと${Math.ceil(slotWait(0) / G.speed)}秒`); return; }
   startRotate(p, d);
 }
+function playerPromote() {
+  if (!G || G.over || G.countdown > 0 || G.watch) return;
+  const p = G.sel && G.pieces.includes(G.sel) ? G.sel : null;
+  if (!p) { toast('先に駒を選んでください'); return; }
+  if (p.promoted || p.type === 'OU' || p.type === 'KI') { toast('この駒は成れません'); return; }
+  if (!inPromoZone(p)) { toast('敵陣（色のついた2段）で成れます'); return; }
+  if (p.state !== 'idle') { toast('今は成れません'); return; }
+  if (p.cool > 0) { toast('休み中です'); return; }
+  if (!canAct(p)) { toast(`次の手まであと${Math.ceil(slotWait(0) / G.speed)}秒`); return; }
+  startPromote(p);
+}
 
 canvas.addEventListener('pointerdown', e => {
   const [x, y] = screenToCell(e.clientX, e.clientY);
@@ -1387,9 +1455,11 @@ canvas.addEventListener('pointerdown', e => {
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 $('rotL').addEventListener('click', () => playerRotate(-1));
 $('rotR').addEventListener('click', () => playerRotate(1));
+$('promoBtn').addEventListener('click', playerPromote);
 window.addEventListener('keydown', e => {
   if (e.key === 'q' || e.key === 'Q') playerRotate(-1);
   else if (e.key === 'e' || e.key === 'E') playerRotate(1);
+  else if (e.key === 'r' || e.key === 'R') playerPromote();
   else if (e.key === 'Escape' && G) G.sel = null;
 });
 

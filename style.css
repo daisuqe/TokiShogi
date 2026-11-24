@@ -126,7 +126,8 @@ button.primary {
   box-shadow: 0 0 14px rgba(63, 220, 120, 0.4);
 }
 /* 回すボタンは大きく（指で押しやすく） */
-#rotL, #rotR {
+#rotL, #rotR, #promoBtn {
+  flex: 1 1 0;
   display: inline-flex; align-items: center; justify-content: center; gap: 10px;
   font-size: 24px; padding: 14px 22px; min-height: 72px;
   touch-action: manipulation;
@@ -136,7 +137,7 @@ button.primary {
 .rot polygon { fill: currentColor; }
 @media (max-width: 480px) {
   .controls { width: 100%; }
-  #rotL, #rotR { flex: 1 1 0; font-size: 16px; padding: 12px 8px; gap: 6px; }
+  #rotL, #rotR, #promoBtn { font-size: 16px; padding: 12px 4px; gap: 4px; }
   .rot { width: 32px; height: 32px; }
 }
 /* 指で操作する端末ではキーの表示は出さない */
@@ -168,6 +169,10 @@ kbd { font-size: 11px; color: var(--g3); font-family: inherit; }
 }
 @media (max-width: 480px) { .count { font-size: 96px; } }
 .count.show { opacity: 1; }
+/* カウントダウンは美咲フォント（8ドット単位の大きさにして、ドットをくっきりと） */
+.count { font-family: "TokiMisaki", monospace; font-size: 128px; font-weight: 400; }
+.count.word { font-size: 112px; }
+@media (max-width: 480px) { .count { font-size: 96px; } .count.word { font-size: 80px; } }
 .overlay {
   position: fixed; inset: 0;
   background: rgba(1, 8, 5, 0.82);

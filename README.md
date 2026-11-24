@@ -9,6 +9,7 @@
 - 順番はありません。王（玉）を取ったら勝ち。
 - 駒を選んで行き先を押すと動きます。
 - 回すボタンで90度回転。向きで動ける方向が変わります。
+- 敵陣（奥の2段）では、駒を選んで成りボタンで成れます（金と王は成れません）。
 - 相手の駒に乗ると組み合い。体力が0になった方が取られます。
 - 組み合いの隣で、そのマスへ動ける向きの駒は自動で助太刀します。
 
@@ -22,13 +23,14 @@
 | `index.html` | 画面 |
 | `style.css` | 見た目 |
 | `game.js` | ルール・COM・描画 |
+| `font-misaki.css` | カウントダウン（数字と START!）だけの美咲ゴシック |
 | `font.css` | ゲームで使う文字だけを切り出して埋め込んだ字体（どの環境でも、ネットがなくても、ファイルを直接開いても、同じ字形で出る） |
 | `fonts/` | ライセンスの表記（NOTICE） |
 | `icons/` | タブのアイコン（16・32px）と、iPhone のホーム画面用アイコン（180px） |
 
 ## 使っているフォント
 
-- [美咲フォント](https://littlelimit.net/misaki.htm)（美咲ゴシック）：題名の「刻」「将」のドット絵の字形（フォントのファイルは公開していません）
+- [美咲フォント](https://littlelimit.net/misaki.htm)（美咲ゴシック）：題名の「刻」「将」のドット絵の字形と、カウントダウンの数字・START!（使う文字だけを切り出して埋め込み）
 - [M PLUS 1 Code](https://fonts.google.com/specimen/M+PLUS+1+Code)（SIL Open Font License）：画面と駒の文字。使う文字だけを切り出して埋め込み（`fonts/NOTICE-M-PLUS-1-Code.txt`）
 
 Copyright (c) 2026 daisuqe. All rights reserved.
