@@ -1,9 +1,3 @@
-@font-face {
-  font-family: "Misaki";
-  src: url("misaki_gothic.woff2") format("woff2");
-  font-display: block;
-}
-/* 美咲フォントは8ドットの字。文字の大きさは8の倍数（8・16・24…）にそろえるとくっきり出る */
 /* 駒以外はレトロフューチャーの緑。自軍の青・相手の赤は、駒とどちらの軍かを示す所だけに使う */
 :root {
   --g0: #010805;   /* いちばん暗い緑（背景） */
@@ -15,7 +9,7 @@
   --line: rgba(63, 220, 120, 0.28);
   --you: #59a8ff;
   --cpu: #ff5c63;
-  --font: "Misaki", "Yu Gothic UI", "Meiryo", sans-serif;
+  --font: "TokiFont", "Yu Gothic UI", "Meiryo", sans-serif;
 }
 * { box-sizing: border-box; }
 /* ページの一番外側も暗くする（スマホで引っぱったときや、上のノッチのあたりが白く見えないように） */
@@ -29,8 +23,6 @@ body {
   font-family: var(--font);
   font-size: 16px;
   font-weight: normal;
-  font-synthesis: none;
-  -webkit-font-smoothing: none;
   min-height: 100svh;
 }
 /* 画面全体にうっすら走査線 */
@@ -82,17 +74,10 @@ header .en {
   display: block;
   /* 手前に倒すと下の辺が広がる（30度で約13%）ので、横幅に余裕をとる */
   /* --ar は盤の横÷縦（game.js が入れる）。縦長の盤は高さで幅を決める */
-  width: min(calc((100vw - 32px) * 0.86), 580px, calc((100svh - 230px) * var(--ar, 1)));
-  min-width: 220px;
+  width: min(calc((100vw - 32px) * 0.86), 580px, calc((100svh - 262px) * var(--ar, 1)));
+  min-width: 190px;
   aspect-ratio: var(--ar, 1);
-  border: 2px solid var(--g4);
-  border-radius: 2px;
-  /* 盤の厚み・光（盤といっしょに倒れる） */
-  box-shadow:
-    0 0 0 1px rgba(63, 220, 120, 0.15),
-    0 10px 0 #06301a,
-    0 10px 0 1px rgba(63, 220, 120, 0.45),
-    0 0 40px rgba(63, 220, 120, 0.25);
+  /* 盤の枠・光は、game.js が盤の部分だけに描く（上下の余白は透明） */
   transform-origin: 50% 50%;
   touch-action: manipulation;
   user-select: none;
@@ -159,7 +144,7 @@ button.primary {
 .portrait { z-index: 20; }
 .portrait .panel { text-align: center; font-size: 24px; padding: 32px 16px; }
 .portrait p { margin: 0; }
-kbd { font-size: 8px; color: var(--g3); font-family: inherit; }
+kbd { font-size: 11px; color: var(--g3); font-family: inherit; }
 .diff small { display: block; font-size: 16px; color: var(--g3); margin-top: 4px; }
 .hint { margin: 0; font-size: 16px; color: var(--g3); min-height: 1.4em; text-align: center; }
 .toast {
@@ -210,12 +195,11 @@ kbd { font-size: 8px; color: var(--g3); font-family: inherit; }
   text-shadow: 0 0 12px var(--g4);
 }
 .sub { text-align: center; color: var(--g3); margin: 6px 0 16px; font-size: 16px; }
-/* ルール説明は読みやすさ優先で、駒と同じ M PLUS 1 Code（ドット書体ではない） */
+/* ルール説明：読みやすさ優先で、ドット書体ではなく、ふつうの字体（駒と同じ。font.css に埋め込み） */
 .rules {
   padding-left: 1.2em; margin: 0 0 18px;
-  font-family: "M PLUS 1 Code", "Yu Gothic UI", "Meiryo", sans-serif;
+  font-family: "TokiFont", "Yu Gothic UI", "Meiryo", sans-serif;
   font-size: 15px; line-height: 1.75; color: #a6ecbf;
-  -webkit-font-smoothing: auto;
 }
 .rules li { margin-bottom: 2px; }
 /* 後半（秒数など）は1行あけて、少し控えめに */
@@ -239,7 +223,7 @@ kbd { font-size: 8px; color: var(--g3); font-family: inherit; }
   bottom: max(8px, env(safe-area-inset-bottom));
   background: none; border: none; box-shadow: none;
   padding: 4px 8px;
-  font-family: "M PLUS 1 Code", "Yu Gothic UI", sans-serif;
+  font-family: "TokiFont", "Yu Gothic UI", sans-serif;
   font-size: 11px; letter-spacing: 0.02em;
   color: var(--g3); opacity: 0.75;
   white-space: nowrap; cursor: pointer;
@@ -248,7 +232,7 @@ button.copyright:hover:not(:disabled) { color: var(--g5); opacity: 1; box-shadow
 .copyright:focus-visible { outline: 1px solid var(--g4); outline-offset: 2px; opacity: 1; }
 .copyright-note {
   margin-top: 16px !important;
-  font-family: "M PLUS 1 Code", sans-serif; font-size: 11px; color: var(--g3);
+  font-family: "TokiFont", sans-serif; font-size: 11px; color: var(--g3);
 }
 
 /* License の画面（ほかのパネルと同じ見た目） */
@@ -258,7 +242,7 @@ button.copyright:hover:not(:disabled) { color: var(--g5); opacity: 1; box-shadow
 .license-text {
   margin: 0 0 18px;
   white-space: pre-wrap; overflow-wrap: anywhere;
-  font-family: "M PLUS 1 Code", "Yu Gothic UI", sans-serif;
+  font-family: "TokiFont", "Yu Gothic UI", sans-serif;
   font-size: 12px; line-height: 1.7; color: #a6ecbf;
 }
 .license .diff button { flex: 0 0 auto; padding: 8px 24px; }
@@ -305,8 +289,34 @@ button.apps-btn:hover:not(:disabled) { opacity: 1; box-shadow: none; border: non
   right: max(12px, env(safe-area-inset-right));
   width: 40px; height: 40px; padding: 0;
   background: none; border: none; box-shadow: none;
-  font-family: "M PLUS 1 Code", sans-serif; font-size: 30px; line-height: 40px; font-weight: 400;
+  font-family: "TokiFont", sans-serif; font-size: 30px; line-height: 40px; font-weight: 400;
   color: var(--g4); opacity: 0.7; cursor: pointer;
 }
 button.quit-btn:hover:not(:disabled) { opacity: 1; color: var(--g5); border: none; box-shadow: none; }
 .quit-btn:focus-visible { outline: 2px solid #fff; outline-offset: -4px; opacity: 1; }
+
+/* スタート画面の難しさのボタンは正方形 */
+.start .diff { align-items: flex-start; }
+.start .diff button { aspect-ratio: 1 / 1; height: auto; padding: 4px; display: flex; align-items: center; justify-content: center; text-align: center; }
+/* 狭いスマホでも、難しさの5つの正方形が、4文字の「やさしい」を折り返さずに並ぶように余白を詰める */
+@media (max-width: 420px) {
+  .overlay.start { padding-left: 8px; padding-right: 8px; }
+  .start .panel { padding-left: 8px; padding-right: 8px; }
+  .start .diff { gap: 4px; }
+  .start .diff button { padding: 0; letter-spacing: 0; }
+}
+
+/* 「青の勝ち」「赤の勝ち」の色字 */
+.c-blue { color: var(--you); text-shadow: 0 0 12px var(--you); }
+.c-red { color: var(--cpu); text-shadow: 0 0 12px var(--cpu); }
+
+/* スタート画面の題名は大きく（1.5倍）。結果の画面の題名は、そのまま */
+.start .panel h2 { font-size: 60px; }
+/* 大きい題名：「（作成中）」は題名の下に置き、字間もせまくする */
+.start .panel h2 { --ls: 0.22em; margin: 0 auto; line-height: 1.05; }
+.start .panel h2 .wip { display: block; margin: 6px 0 0 calc(-1 * var(--ls)); letter-spacing: 0; }
+.start .panel .sub { margin: 4px 0 12px; }
+
+/* 「次の手」のゲージ：文字ではなく図形（■□の字がフォントに無いので） */
+.hands i { display: inline-block; width: 0.7em; height: 0.7em; margin-right: 3px; background: currentColor; vertical-align: -0.05em; }
+.hands i.off { background: transparent; box-shadow: inset 0 0 0 1.5px currentColor; }

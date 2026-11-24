@@ -12,7 +12,7 @@
 - 相手の駒に乗ると組み合い。体力が0になった方が取られます。
 - 組み合いの隣で、そのマスへ動ける向きの駒は自動で助太刀します。
 
-細かい秒数（移動3秒・回転9秒・休み3秒／王6秒など）は、ゲームの最初の画面に出ます。
+移動・回転・休み・成り・指示の間隔は、すべて3秒です。
 数字はすべて `game.js` の先頭の `CFG` にまとまっていて、`U`（3秒）を変えると全体の速さが変わります。
 
 ## ファイル
@@ -22,13 +22,14 @@
 | `index.html` | 画面 |
 | `style.css` | 見た目 |
 | `game.js` | ルール・COM・描画 |
-| `misaki_gothic.woff2` | 美咲ゴシック（画面の文字） |
+| `font.css` | ゲームで使う文字だけを切り出して埋め込んだ字体（どの環境でも、ネットがなくても、ファイルを直接開いても、同じ字形で出る） |
+| `fonts/` | ライセンスの表記（NOTICE） |
 | `icons/` | タブのアイコン（16・32px）と、iPhone のホーム画面用アイコン（180px） |
 
 ## 使っているフォント
 
-- [美咲フォント](https://littlelimit.net/misaki.htm)（美咲ゴシック）：画面の文字
-- [M PLUS 1 Code](https://fonts.google.com/specimen/M+PLUS+1+Code)（Google Fonts）：駒の文字とルール説明
+- [美咲フォント](https://littlelimit.net/misaki.htm)（美咲ゴシック）：題名の「刻」「将」のドット絵の字形（フォントのファイルは公開していません）
+- [M PLUS 1 Code](https://fonts.google.com/specimen/M+PLUS+1+Code)（SIL Open Font License）：画面と駒の文字。使う文字だけを切り出して埋め込み（`fonts/NOTICE-M-PLUS-1-Code.txt`）
 
 Copyright (c) 2026 daisuqe. All rights reserved.
 無断での複製・改変・再配布・転載を禁じます(詳しくは `LICENSE` を見てください)。

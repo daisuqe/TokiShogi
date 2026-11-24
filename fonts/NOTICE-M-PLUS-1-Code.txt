@@ -1,0 +1,15 @@
+M PLUS 1 Code（駒の文字に使っているフォントの出典とライセンス）
+
+ゲームの文字（font.css に埋め込んだもの）は、M PLUS 1 Code から、ゲームで使う文字だけを
+切り出したものです（ふつうの太さ wght 400 と、太字 wght 700 の2つ。駒の文字は太字）。
+字形は変えていません。作り直すための道具は、手元の作業用フォルダにあります（公開していません）。
+
+著作権表示:
+Copyright 2021 The M+ FONTS Project Authors (https://github.com/coz-m/MPLUS_FONTS)
+
+ライセンス: SIL Open Font License, Version 1.1
+This Font Software is licensed under the SIL Open Font License, Version 1.1. This license is available with a FAQ at: https://openfontlicense.org
+https://openfontlicense.org
+
+入手先: https://fonts.google.com/specimen/M+PLUS+1+Code
+        https://github.com/google/fonts/tree/main/ofl/mplus1code

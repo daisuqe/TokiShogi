@@ -22,22 +22,19 @@
 <link rel="icon" type="image/png" sizes="32x32" href="icons/icon32.png">
 <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-title" content="刻将棋">
-<link rel="preload" href="misaki_gothic.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=M+PLUS+1+Code:wght@400;700&display=block">
-<link rel="stylesheet" href="style.css?v=20261124b">
+<link rel="stylesheet" href="font.css?v=20261125b">
+<link rel="stylesheet" href="style.css?v=20261125a">
 </head>
 <body>
 <main>
   <header>
-    <!-- 「棋」は美咲の字の代わりに描いたドット絵（8×8） -->
-    <h1 aria-label="刻将棋（作成中）">刻将<svg class="glyph" viewBox="0 0 8 8" aria-hidden="true"><path d="M1 0h1v1h-1zM4 0h1v1h-1zM6 0h1v1h-1zM1 1h1v1h-1zM3 1h1v1h-1zM4 1h1v1h-1zM5 1h1v1h-1zM6 1h1v1h-1zM7 1h1v1h-1zM0 2h1v1h-1zM1 2h1v1h-1zM2 2h1v1h-1zM4 2h1v1h-1zM6 2h1v1h-1zM1 3h1v1h-1zM4 3h1v1h-1zM5 3h1v1h-1zM6 3h1v1h-1zM0 4h1v1h-1zM1 4h1v1h-1zM2 4h1v1h-1zM4 4h1v1h-1zM6 4h1v1h-1zM0 5h1v1h-1zM1 5h1v1h-1zM3 5h1v1h-1zM4 5h1v1h-1zM5 5h1v1h-1zM6 5h1v1h-1zM7 5h1v1h-1zM1 6h1v1h-1zM4 6h1v1h-1zM6 6h1v1h-1z"/></svg><small class="wip">（作成中）</small></h1>
+    <!-- 題名の「刻」「将」は美咲ゴシック、「棋」は自作の、8×8のドット絵（フォントは使わない） -->
+    <h1 aria-label="刻将棋（作成中）"><svg class="glyph" viewBox="0 0 8 8" aria-hidden="true"><path d="M2 0h1v1h-1zM6 0h1v1h-1zM0 1h1v1h-1zM1 1h1v1h-1zM2 1h1v1h-1zM3 1h1v1h-1zM4 1h1v1h-1zM6 1h1v1h-1zM1 2h1v1h-1zM4 2h1v1h-1zM6 2h1v1h-1zM0 3h1v1h-1zM2 3h1v1h-1zM4 3h1v1h-1zM6 3h1v1h-1zM1 4h1v1h-1zM3 4h1v1h-1zM6 4h1v1h-1zM2 5h1v1h-1zM6 5h1v1h-1zM0 6h1v1h-1zM1 6h1v1h-1zM3 6h1v1h-1zM5 6h1v1h-1zM6 6h1v1h-1z"/></svg><svg class="glyph" viewBox="0 0 8 8" aria-hidden="true"><path d="M1 0h1v1h-1zM5 0h1v1h-1zM6 0h1v1h-1zM1 1h1v1h-1zM2 1h1v1h-1zM3 1h1v1h-1zM4 1h1v1h-1zM0 2h1v1h-1zM1 2h1v1h-1zM2 2h1v1h-1zM4 2h1v1h-1zM6 2h1v1h-1zM1 3h1v1h-1zM5 3h1v1h-1zM0 4h1v1h-1zM1 4h1v1h-1zM2 4h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM5 4h1v1h-1zM6 4h1v1h-1zM1 5h1v1h-1zM3 5h1v1h-1zM5 5h1v1h-1zM1 6h1v1h-1zM4 6h1v1h-1zM5 6h1v1h-1z"/></svg><svg class="glyph" viewBox="0 0 8 8" aria-hidden="true"><path d="M1 0h1v1h-1zM4 0h1v1h-1zM6 0h1v1h-1zM1 1h1v1h-1zM3 1h1v1h-1zM4 1h1v1h-1zM5 1h1v1h-1zM6 1h1v1h-1zM7 1h1v1h-1zM0 2h1v1h-1zM1 2h1v1h-1zM2 2h1v1h-1zM4 2h1v1h-1zM6 2h1v1h-1zM1 3h1v1h-1zM4 3h1v1h-1zM5 3h1v1h-1zM6 3h1v1h-1zM0 4h1v1h-1zM1 4h1v1h-1zM2 4h1v1h-1zM4 4h1v1h-1zM6 4h1v1h-1zM0 5h1v1h-1zM1 5h1v1h-1zM3 5h1v1h-1zM4 5h1v1h-1zM5 5h1v1h-1zM6 5h1v1h-1zM7 5h1v1h-1zM1 6h1v1h-1zM4 6h1v1h-1zM6 6h1v1h-1z"/></svg><small class="wip">（作成中）</small></h1>
   </header>
 
   <div class="hud cpu">
     <span class="who" id="whoCpu">COM</span>
-    <span class="label">空き手</span><span id="handsCpu" class="hands"></span>
+    <span class="label">次の手</span><span id="handsCpu" class="hands"></span>
     <span class="label">取った駒</span><span id="capsCpu" class="caps"></span>
   </div>
 
@@ -49,7 +46,7 @@
 
   <div class="hud you">
     <span class="who" id="whoYou">あなた</span>
-    <span class="label">空き手</span><span id="handsYou" class="hands"></span>
+    <span class="label">次の手</span><span id="handsYou" class="hands"></span>
     <span class="label">取った駒</span><span id="capsYou" class="caps"></span>
   </div>
 
@@ -66,7 +63,7 @@
 
 <div id="overlay" class="overlay start">
   <div class="panel">
-    <h2 aria-label="刻将棋（作成中）">刻将<svg class="glyph" viewBox="0 0 8 8" aria-hidden="true"><path d="M1 0h1v1h-1zM4 0h1v1h-1zM6 0h1v1h-1zM1 1h1v1h-1zM3 1h1v1h-1zM4 1h1v1h-1zM5 1h1v1h-1zM6 1h1v1h-1zM7 1h1v1h-1zM0 2h1v1h-1zM1 2h1v1h-1zM2 2h1v1h-1zM4 2h1v1h-1zM6 2h1v1h-1zM1 3h1v1h-1zM4 3h1v1h-1zM5 3h1v1h-1zM6 3h1v1h-1zM0 4h1v1h-1zM1 4h1v1h-1zM2 4h1v1h-1zM4 4h1v1h-1zM6 4h1v1h-1zM0 5h1v1h-1zM1 5h1v1h-1zM3 5h1v1h-1zM4 5h1v1h-1zM5 5h1v1h-1zM6 5h1v1h-1zM7 5h1v1h-1zM1 6h1v1h-1zM4 6h1v1h-1zM6 6h1v1h-1z"/></svg><small class="wip">（作成中）</small></h2>
+    <h2 aria-label="刻将棋（作成中）"><svg class="glyph" viewBox="0 0 8 8" aria-hidden="true"><path d="M2 0h1v1h-1zM6 0h1v1h-1zM0 1h1v1h-1zM1 1h1v1h-1zM2 1h1v1h-1zM3 1h1v1h-1zM4 1h1v1h-1zM6 1h1v1h-1zM1 2h1v1h-1zM4 2h1v1h-1zM6 2h1v1h-1zM0 3h1v1h-1zM2 3h1v1h-1zM4 3h1v1h-1zM6 3h1v1h-1zM1 4h1v1h-1zM3 4h1v1h-1zM6 4h1v1h-1zM2 5h1v1h-1zM6 5h1v1h-1zM0 6h1v1h-1zM1 6h1v1h-1zM3 6h1v1h-1zM5 6h1v1h-1zM6 6h1v1h-1z"/></svg><svg class="glyph" viewBox="0 0 8 8" aria-hidden="true"><path d="M1 0h1v1h-1zM5 0h1v1h-1zM6 0h1v1h-1zM1 1h1v1h-1zM2 1h1v1h-1zM3 1h1v1h-1zM4 1h1v1h-1zM0 2h1v1h-1zM1 2h1v1h-1zM2 2h1v1h-1zM4 2h1v1h-1zM6 2h1v1h-1zM1 3h1v1h-1zM5 3h1v1h-1zM0 4h1v1h-1zM1 4h1v1h-1zM2 4h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM5 4h1v1h-1zM6 4h1v1h-1zM1 5h1v1h-1zM3 5h1v1h-1zM5 5h1v1h-1zM1 6h1v1h-1zM4 6h1v1h-1zM5 6h1v1h-1z"/></svg><svg class="glyph" viewBox="0 0 8 8" aria-hidden="true"><path d="M1 0h1v1h-1zM4 0h1v1h-1zM6 0h1v1h-1zM1 1h1v1h-1zM3 1h1v1h-1zM4 1h1v1h-1zM5 1h1v1h-1zM6 1h1v1h-1zM7 1h1v1h-1zM0 2h1v1h-1zM1 2h1v1h-1zM2 2h1v1h-1zM4 2h1v1h-1zM6 2h1v1h-1zM1 3h1v1h-1zM4 3h1v1h-1zM5 3h1v1h-1zM6 3h1v1h-1zM0 4h1v1h-1zM1 4h1v1h-1zM2 4h1v1h-1zM4 4h1v1h-1zM6 4h1v1h-1zM0 5h1v1h-1zM1 5h1v1h-1zM3 5h1v1h-1zM4 5h1v1h-1zM5 5h1v1h-1zM6 5h1v1h-1zM7 5h1v1h-1zM1 6h1v1h-1zM4 6h1v1h-1zM6 6h1v1h-1z"/></svg><small class="wip">（作成中）</small></h2>
     <p class="sub">リアルタイム将棋</p>
     <!-- 前半：これだけは知っておく必要があるルール -->
     <ul class="rules">
@@ -78,11 +75,11 @@
     </ul>
     <!-- 後半：秒数など、遊んでいればわかるもの -->
     <ul class="rules rules-sub">
-      <li>移動 <b data-t="MOVE_TIME">3秒</b>／回転 <b data-t="ROTATE_TIME">9秒</b></li>
-      <li>動き終わった駒は <b data-t="COOLDOWN">3秒</b> 休み（王は <b data-t="KING_COOLDOWN">6秒</b>）</li>
-      <li>同時に動かせる（回せる）のは <b>3駒</b> まで</li>
-      <li>敵陣（色のついた2段）で <b data-t="PROMOTE_TIME">6秒</b> 止まると成る</li>
-      <li>動き出した駒の元のマスには、その駒がマスを完全に離れるまで入れない（斜線の間）</li>
+      <li>指示は <b data-t="ACT_GAP">3秒</b> に1回</li>
+      <li>移動、回転 <b data-t="MOVE_TIME">3秒</b></li>
+      <li>移動、回転後は <b data-t="COOLDOWN">3秒</b> 動けない</li>
+      <li>敵陣（色のついた2段）で <b data-t="PROMOTE_TIME">3秒</b> 止まると成る</li>
+      <li>動き出した駒の元のマスには、その駒がマスを離れるまで入れない</li>
     </ul>
     <div class="diff">
       <button data-diff="easy2">おそい<br>やさしい</button>
@@ -151,6 +148,6 @@ daisuqe が保有します。著作権者の事前の書面による許可なく
   </div>
 </div>
 
-<script src="game.js?v=20261124b"></script>
+<script src="game.js?v=20261125b"></script>
 </body>
 </html>
