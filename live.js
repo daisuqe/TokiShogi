@@ -103,7 +103,9 @@ const LIVE = (() => {
   function retreat(g) {
     if (!cur || cur.g !== g || cur.end) return;
     cur.hpL = cur.L.hp; cur.hpR = cur.R.hp;
-    cur.end = { t: now(), loser: null, winner: null, retreat: g.atk };
+    // 下がる時間：ふだんは2.2秒。ほかに同時進行の試合があるなら、次へ早く移るため1.5秒
+    const dur = G.grapples.some(q => q !== g) ? RETREAT_T_MULTI : RETREAT_T;
+    cur.end = { t: now(), loser: null, winner: null, retreat: g.atk, dur };
   }
   function end(g, atkWins) {
     if (!cur || cur.g !== g) return;
@@ -125,7 +127,7 @@ const LIVE = (() => {
   // ===== 位置など =====
   let W = 360, H = 160, DPR = 1;
   // 上の空きを削った分（--live-cut）は、キャラの大きさに数えない（キャラを小さくしない）
-  const RETREAT_T = 1.5;   // 撤退：下がる秒数（そのまま中継を閉じる）
+  const RETREAT_T = 2.2, RETREAT_T_MULTI = 1.5;   // 撤退：下がる秒数（そのまま中継を閉じる）。同時進行の試合があるときは短く
   let CUT = 0;
   const unit = () => (H + CUT) / 160;
   function fighterPos(isL) {
@@ -204,7 +206,7 @@ const LIVE = (() => {
     if (seenG !== G) { seenG = G; cur = null; parts = []; rings = []; slashes = []; beams = []; texts = []; }
     if (G) {
       if (cur && !cur.end && !G.grapples.includes(cur.g)) cur.end = cur.end || { t: now(), loser: null, winner: null }; // 知らせが来なかったとき
-      if (cur && cur.end && now() - cur.end.t > (cur.end.retreat ? RETREAT_T : 2.2)) cur = null;
+      if (cur && cur.end && now() - cur.end.t > (cur.end.retreat ? cur.end.dur : 2.2)) cur = null;
       // 王の試合が始まったら、いまの試合の途中でも切り替える
       if (cur && !cur.end && !isKing(cur.g) && G.grapples.some(isKing)) cur = null;
       if (!cur && !G.over) {
@@ -307,21 +309,32 @@ const LIVE = (() => {
     // 助太刀：後ろに小さく並べる
     const sup = (list, isL) => {
       const arr = cur.end ? [] : list.slice(0, 3);
+      // 助太刀の大きさは、組み合っている2人と、ふつうの助太刀（0.34）の間。戦っている2人とはあまり重ねない
+      const SUP_K = 0.47 * 160 * u / 148, FIGHT_K = 100 * u / 148;
+      const fighter = isL ? L : R, fi = img(baseName(fighter), 'idle');
+      const fw = (fi.naturalWidth || 100) * FIGHT_K * sizeOf(fighter);
+      const out = isL ? -1 : 1;
+      let edge = (isL ? cur.xl : cur.xr) + out * fw * 0.5;   // 戦っている駒の外側の端
+      let lastX = edge;
       arr.forEach((p, i) => {
         if (!cur.seen.has(p)) cur.seen.set(p, tn);
         const age = tn - cur.seen.get(p);
-        const base = isL ? cur.xl : cur.xr;
-        let x = base + (isL ? -1 : 1) * (42 + i * 22) * u + (isL ? -1 : 1) * (1 - Math.min(1, age / 0.3)) * 30 * u;
-        x = Math.max(16 * u, Math.min(W - 16 * u, x));
-        const y = H - (12 + (i % 2) * 7) * u;
         const struck = tn - (p._ls || -9) < 0.35;
-        const k = 0.34 * 160 * u / 148 * sizeOf(p) * (struck ? 1.08 : 1);
+        const k = SUP_K * sizeOf(p) * (struck ? 1.08 : 1);
+        const im = img(baseName(p), 'idle');
+        const w = (im.naturalWidth || 100) * k;
+        // 外側へ並べる：となりと少しだけ重ねる（戦っている駒とは、ほぼ重ねない）
+        let x = edge + out * w * 0.45 + out * (1 - Math.min(1, age / 0.3)) * 30 * u;
+        edge += out * w * 0.8;
+        x = Math.max(w / 2, Math.min(W - w / 2, x));
+        lastX = x;
+        const y = H - (12 + (i % 2) * 7) * u;
         drawSprite(p, struck ? 'attack-2' : 'idle', x, y, k, isL ? 1 : -1, 0.92, COL[p.side]);
         // 「助」の札（現れた直後は大きく弾む）
         const pop = Math.max(0, 1 - age / 0.35);
-        text('助', x, y - 56 * u * 0.6 - 8 * u - pop * 6 * u, Math.round((11 + pop * 7) * u), '#3ee08f', 'center');
+        text('助', x, y - 77 * u * 0.77 - 8 * u - pop * 6 * u, Math.round((11 + pop * 7) * u), '#3ee08f', 'center');
       });
-      if (!cur.end && list.length > 3) text('+' + (list.length - 3), (isL ? cur.xl - 46 * u : cur.xr + 46 * u), H - 52 * u, 16, '#3ee08f', 'center', MISAKI);
+      if (!cur.end && list.length > 3) text('+' + (list.length - 3), Math.max(16 * u, Math.min(W - 16 * u, lastX + out * 30 * u)), H - 82 * u, 16, '#3ee08f', 'center', MISAKI);
     };
     const lSup = g.atkSups.concat(g.defSups).filter(p => p.side === 0);
     const rSup = g.atkSups.concat(g.defSups).filter(p => p.side === 1);
@@ -333,9 +346,9 @@ const LIVE = (() => {
       let pose, dx = 0, white = 0;
       const sinceHit = tn - (p._lh || -9), sinceStrike = tn - (p._ls || -9);
       if (cur.end && cur.end.retreat) {
-        // 撤退：攻めた側は相手を向いたまま、RETREAT_T 秒かけて後ろへ下がる（守りの姿勢。相手は立ったまま）
+        // 撤退：攻めた側は相手を向いたまま、下がる秒数かけて後ろへ下がる（守りの姿勢。相手は立ったまま）
         pose = p === cur.end.retreat ? 'defense-2' : 'idle';
-        if (p === cur.end.retreat) dx = (isL ? -1 : 1) * Math.min(1, (tn - cur.end.t) / RETREAT_T) * 70 * u;
+        if (p === cur.end.retreat) dx = (isL ? -1 : 1) * Math.min(1, (tn - cur.end.t) / cur.end.dur) * 70 * u;
       } else if (cur.end) {
         pose = p === cur.end.loser ? 'ko' : 'idle';
         if (p === cur.end.loser) dx = (isL ? -1 : 1) * Math.min(1, (tn - cur.end.t) / 0.5) * 22 * u;
