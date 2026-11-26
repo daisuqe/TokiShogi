@@ -274,6 +274,12 @@ const LIVE = (() => {
     header(u, ts, cur.end ? 1 : idx, Math.max(total, 1));
     const intro = Math.min(1, (tn - cur.t0) / 0.5);
 
+    // 体力バー（上）：キャラより後ろに描く（キャラが体力バーや数字の上に出る）。左が青、右が赤。真ん中に VS
+    const by = 34 * u, bh = 17 * u, mid = W / 2;
+    bar(14, mid - 20 * u, by, bh, cur.hpL / 100, cur.chipL / 100, 0, false, L);
+    bar(mid + 20 * u, W - 14, by, bh, cur.hpR / 100, cur.chipR / 100, 1, true, R);
+    text('VS', mid, by + bh / 2 + 1, 16, '#fff3b0', 'center', MISAKI, '#000');
+
     // 押し合いの矢印
     if (!cur.end) {
       const d = cur.hpL - cur.hpR;
@@ -334,12 +340,6 @@ const LIVE = (() => {
     };
     // 手前（組み合いの上に乗った駒）を後から描く
     if (cur.atkIsL) { fighter(R, false, false); fighter(L, true, true); } else { fighter(L, true, false); fighter(R, false, true); }
-
-    // 体力バー（上）：左が青、右が赤。真ん中に VS
-    const by = 34 * u, bh = 17 * u, mid = W / 2;
-    bar(14, mid - 20 * u, by, bh, cur.hpL / 100, cur.chipL / 100, 0, false, L);
-    bar(mid + 20 * u, W - 14, by, bh, cur.hpR / 100, cur.chipR / 100, 1, true, R);
-    text('VS', mid, by + bh / 2 + 1, 16, '#fff3b0', 'center', MISAKI, '#000');
 
     // 助太刀の光の筋
     for (const b of beams) {
