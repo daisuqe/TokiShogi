@@ -13,7 +13,7 @@
 }
 * { box-sizing: border-box; }
 /* ページの一番外側も暗くする（スマホで引っぱったときや、上のノッチのあたりが白く見えないように） */
-html { background: var(--g0); color-scheme: dark; }
+html { background: var(--g0); color-scheme: dark; --live-h: clamp(130px, 19svh, 170px); }
 html, body { margin: 0; }
 body {
   background:
@@ -74,7 +74,7 @@ header .en {
   display: block;
   /* 手前に倒すと下の辺が広がる（30度で約13%）ので、横幅に余裕をとる */
   /* --ar は盤の横÷縦（game.js が入れる）。縦長の盤は高さで幅を決める */
-  width: min(calc((100vw - 32px) * 0.86), 580px, calc((100svh - 262px) * var(--ar, 1)));
+  width: min(calc((100vw - 32px) * 0.86), 580px, calc((100svh - 218px - var(--live-h)) * var(--ar, 1)));
   min-width: 190px;
   aspect-ratio: var(--ar, 1);
   /* 盤の枠・光は、game.js が盤の部分だけに描く（上下の余白は透明） */
@@ -325,3 +325,16 @@ button.quit-btn:hover:not(:disabled) { opacity: 1; color: var(--g5); border: non
 /* 「次の手」のゲージ：文字ではなく図形（■□の字がフォントに無いので） */
 .hands i { display: inline-block; width: 0.7em; height: 0.7em; margin-right: 3px; background: currentColor; vertical-align: -0.05em; }
 .hands i.off { background: transparent; box-shadow: inset 0 0 0 1.5px currentColor; }
+
+/* 対戦の中継（試合中、画面の上） */
+.live { width: 100%; height: var(--live-h); }
+#live { display: block; width: 100%; height: 100%; background: #010d06; }
+
+/* 設定（スタート画面）：効果音・BGM・駒の上のキャラ */
+.settings { display: flex; gap: 6px; justify-content: center; margin-top: 10px; }
+.settings button { flex: 1 1 0; min-width: 0; padding: 6px 2px; font-size: 13px; letter-spacing: 0.04em; }
+.settings button[aria-pressed="false"] { opacity: 0.5; color: var(--g3); }
+/* 縦画面（スマホ）では、中継の背景を画面の左右いっぱいまで広げる */
+@media (orientation: portrait) {
+  .live { width: 100vw; margin-left: calc(50% - 50vw); }
+}

@@ -218,6 +218,7 @@ function startMove(p, t) {
   G.actAt[p.side] = G.time + CFG.ACT_GAP; // 次の指示まで3秒
   G.lastAct[p.side] = G.time;
   p.state = 'moving';
+  sfx('move', p.side);
   p.noticed = undefined;
   p.fx = p.x; p.fy = p.y; p.tx = t.x; p.ty = t.y;
   p.t = 0;
@@ -233,12 +234,14 @@ function startPromote(p) {
   G.actAt[p.side] = G.time + CFG.ACT_GAP;
   G.lastAct[p.side] = G.time;
   p.state = 'promoting';
+  sfx('promoteStart', p.side);
   p.t = 0; p.dur = CFG.PROMOTE_TIME;
 }
 function startRotate(p, d) {
   G.actAt[p.side] = G.time + CFG.ACT_GAP; // 回し始めるのも1手。回転はそのまま続く
   G.lastAct[p.side] = G.time;
   p.state = 'rotating';
+  sfx('rotate', p.side);
   p.rotD = d; p.t = 0;
   p.dur = CFG.ROTATE_TIME;
 }
@@ -249,7 +252,7 @@ function cooldownFor(p) {
 function arrive(p) {
   p.cool = cooldownFor(p);
   const occ = occupants(p.tx, p.ty);
-  if (occ.length === 0) { p.x = p.tx; p.y = p.ty; p.state = 'idle'; return; }
+  if (occ.length === 0) { p.x = p.tx; p.y = p.ty; p.state = 'idle'; sfx('land', p.side); return; }
   if (occ.length === 1 && occ[0].side !== p.side && occ[0].state !== 'grappled') {
     p.x = p.tx; p.y = p.ty;
     startGrapple(p, occ[0]);
@@ -273,6 +276,7 @@ function nearestEmpty(x0, y0) {
 function startGrapple(a, d) {
   a.state = 'grappled';
   d.state = 'grappled';
+  sfx('clash', a.side);
   d.hp -= CFG.HIT;
   // fx,fy：乗った駒がどこから来たか（攻撃の向きを描くため）
   const g = { x: d.x, y: d.y, fx: a.fx, fy: a.fy, atk: a, def: d, atkSups: [], defSups: [], tick: 0 };
@@ -302,10 +306,17 @@ function grappleValue(g, side) {
 // 1回分の攻撃：乗った駒が乗られた駒へ▲を撃つ（乗られた駒は撃ち返せない。一方的に受けるだけ）。
 // 助太刀はそれぞれ相手の駒へ▲を撃つ。乗った駒を削れるのは守りの助太刀だけ。
 // ダメージは減るだけで、回復はしない。体力が0になった駒が取られる
+// 画面上の中継（live.js）への知らせ。COMの先読みの試し打ちでは送らない
+const live = (fn, ...a) => { if (!G.sim && typeof LIVE !== 'undefined') LIVE[fn](...a); };
 function fireTick(g) {
   const pos = grapplePos(g);
   const ca = CLR.side[g.atk.side], cd = CLR.side[g.def.side];
   const hit = (p, n) => () => damagePiece(g, p, n);
+  sfx('strike', g.atk.side);
+  live('strike', g, g.atk, g.def);
+  for (const sp of g.atkSups) live('strike', g, sp, g.def);
+  for (const sp of g.defSups) live('strike', g, sp, g.atk);
+  if (g.atkSups.length || g.defSups.length) sfx('support');
   shoot(pos.ax, pos.ay, pos.dx, pos.dy, ca, g.def, hit(g.def, CFG.BASE));
   for (const sp of g.atkSups) shoot(sp.x + 0.5, sp.y + 0.5, pos.dx, pos.dy, ca, g.def, hit(g.def, CFG.SUP));
   for (const sp of g.defSups) shoot(sp.x + 0.5, sp.y + 0.5, pos.ax, pos.ay, cd, g.atk, hit(g.atk, CFG.SUP));
@@ -319,6 +330,8 @@ function damagePiece(g, p, n) {
   if (!G.grapples.includes(g)) return;
   const isDef = p === g.def;
   p.hp = Math.max(0, p.hp - n);
+  sfx('hit');
+  live('hit', g, p, n);
   if (p.hp <= 0) resolve(g, isDef); // 乗られた駒が0なら乗った側の勝ち、乗った駒が0なら乗られた側の勝ち
 }
 // ダメージの数字（−10 なら赤、+5 なら緑）が上へ飛び出す
@@ -354,6 +367,7 @@ function spawnSparks(x, y, cols, n, delay = 0) {
   }
 }
 function resolve(g, atkWins) {
+  live('end', g, atkWins);
   G.grapples = G.grapples.filter(q => q !== g);
   if (atkWins) {
     g.atk.state = 'idle';
@@ -366,6 +380,7 @@ function resolve(g, atkWins) {
 function capture(p, by) {
   G.pieces = G.pieces.filter(q => q !== p);
   G.captured[by].push(p.type);
+  sfx('ko');
   if (G.sel === p) G.sel = null;
   addFx(p.x, p.y, '取', CLR.side[by]);
   if (p.type === 'OU') endGame(by);
@@ -399,6 +414,7 @@ function update(realDt) {
       if (p.t >= p.dur) {
         p.promoted = true; p.state = 'idle'; p.cool = cooldownFor(p);
         addFx(p.x, p.y, '成', '#c98cff');
+        sfx('promoted', p.side);
       }
     }
   }
@@ -464,8 +480,10 @@ function updateGrapples(dt) {
     return list;
   };
   for (const g of [...G.grapples]) {
+    const oldS = new Set([...g.atkSups, ...g.defSups]);
     g.atkSups = pickAll(g, g.atk.side);
     g.defSups = pickAll(g, g.def.side);
+    if ([...g.atkSups, ...g.defSups].some(q => !oldS.has(q))) sfx('join');
     g.age = (g.age || 0) + dt;
     g.tick += dt;
     if (g.tick >= CFG.TICK) { g.tick -= CFG.TICK; fireTick(g); }
@@ -1252,6 +1270,25 @@ function draw() {
     drawSmallHp(p, px, py);
   }
 
+  // 移動中・回転中・成り中の駒の上に、キャラを薄く重ねる（戦闘中は上の中継に出るので重ねない。設定でオフにできる）。
+  // 青は右向き、赤は左向きが基本。左へ動くときは左向き、右へ動くときは右向き
+  if (SETTINGS.chara && typeof LIVE !== 'undefined') {
+    const dflt = p => p.side === 0 ? 1 : -1;
+    for (const p of G.pieces) {
+      let x, y, pose, face = dflt(p);
+      if (p.state === 'moving') {
+        const f = Math.min(1, p.t / p.dur);
+        x = cellC(p.fx + (p.tx - p.fx) * f); y = cellC(p.fy + (p.ty - p.fy) * f);
+        pose = 'attack-1';
+        if (p.tx > p.fx) face = 1; else if (p.tx < p.fx) face = -1;
+      } else if (p.state === 'rotating' || p.state === 'promoting') {
+        x = cellC(p.x); y = cellC(p.y);
+        pose = 'idle';
+      } else continue;
+      LIVE.figure(ctx, p, pose, x, y + cs * 0.5, cs * 1.33, face, 0.45);
+    }
+  }
+
   // 移動の矢印・照準・回転の矢印：駒の上に、駒の厚さ1.5個分の高さで描く
   const lift = cs * 0.84 * 0.84 * PIECE_THICK * Math.tan(VIEW.TILT * Math.PI / 180) * 1.5;
   for (const p of G.pieces) {
@@ -1397,6 +1434,7 @@ function updateHud() {
     $('count').textContent = cd;
     $('count').classList.toggle('show', cd !== '');
     $('count').classList.toggle('word', cd === 'START!');
+    if (cd === 'START!') { sfx('start'); if (!G.sim) SND.bgmStart(); } else if (cd) sfx('count');
   }
   const key = [hands(0), hands(1), caps(0), caps(1), hint, sel ? sel.state : '', sel ? (sel.promoted ? 1 : 0) + ',' + (sel.cool > 0 ? 1 : 0) + ',' + sel.y : ''].join('|');
   if (key === hudCache) return;
@@ -1416,6 +1454,7 @@ let toastTimer = 0;
 function toast(msg) {
   const el = $('toast');
   el.textContent = msg;
+  sfx('ng');
   el.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove('show'), 1400);
@@ -1442,6 +1481,7 @@ function handleCell(x, y) {
   }
   const p = occupants(x, y).find(selectable);
   G.sel = p && p !== sel ? p : null;
+  if (G.sel) sfx('select');
   if (!p && occupants(x, y).some(q => q.side === 0 && q.state === 'grappled')) toast('乗られている駒は動けません');
 }
 function playerRotate(d) {
@@ -1488,6 +1528,7 @@ fillRuleNumbers();
 
 // ===== 開始と終わり =====
 function startGame(diff, watch = false) {
+  SND.bgmStop();
   newGame(diff, watch);
   fillRuleNumbers();
   $('overlay').hidden = true;
@@ -1502,6 +1543,8 @@ function endGame(winner) {
   G.over = true;
   G.winner = winner;
   if (G.sim) return; // 先読みの試し打ちでは、画面に触らない
+  SND.bgmStop();
+  sfx(G.watch || winner === 0 ? 'win' : 'lose');
   const m = Math.floor(G.realTime / 60), s = Math.floor(G.realTime % 60);
   // COM対戦では「青の勝ち」「赤の勝ち」。青は青、赤は赤で表示する
   if (G.watch) $('resultTitle').innerHTML = winner === 0 ? '<span class="c-blue">青</span>の勝ち' : '<span class="c-red">赤</span>の勝ち';
@@ -1638,6 +1681,7 @@ function closeQuit() {
   $('quitBtn').focus();
 }
 function backToTitle() {
+  SND.bgmStop();
   quitDlg.hidden = true;
   G = null;
   $('result').hidden = true;
@@ -1650,3 +1694,20 @@ $('quitBtn').addEventListener('click', openQuit);
 $('quitYes').addEventListener('click', backToTitle);
 $('quitNo').addEventListener('click', closeQuit);
 quitDlg.addEventListener('click', e => { if (e.target === quitDlg) closeQuit(); }); // 外側を押したら閉じる
+
+// ボタンを押した音（回す・成りは、それぞれの音があるので除く）
+document.addEventListener('click', e => {
+  const b = e.target.closest && e.target.closest('button');
+  if (b && !['rotL', 'rotR', 'promoBtn', 'setSe'].includes(b.id)) SND.play('ui');
+});
+
+// 設定ボタン（スタート画面）：効果音・BGM・駒の上のキャラ
+(function () {
+  const items = [['setSe', 'se', 'SE', v => SND.setSe(v)], ['setBgm', 'bgm', 'BGM', v => SND.setBgm(v)], ['setChara', 'chara', 'CHARA', () => {}]];
+  for (const [id, key, name, fn] of items) {
+    const b = $(id);
+    const show = () => { b.textContent = `${name} ${SETTINGS[key] ? 'ON' : 'OFF'}`; b.setAttribute('aria-pressed', SETTINGS[key] ? 'true' : 'false'); };
+    show();
+    b.addEventListener('click', () => { SETTINGS[key] = !SETTINGS[key]; saveSettings(); fn(SETTINGS[key]); show(); });
+  }
+})();
