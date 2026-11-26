@@ -347,3 +347,9 @@ button.quit-btn:hover:not(:disabled) { opacity: 1; color: var(--g5); border: non
 .fig { position: absolute; bottom: 0; height: 150px; width: 110px; z-index: 0; pointer-events: none; }
 .figL { left: -6px; }
 .figR { right: -6px; }
+
+/* ×のメニュー：ボタンを縦に並べる */
+.menu-panel { display: flex; flex-direction: column; gap: 10px; }
+.menu-title { margin: 0 0 4px; text-align: center; font-size: 24px; letter-spacing: 0.3em; color: var(--g5); text-shadow: 0 0 10px var(--g4); font-weight: normal; }
+.menu-panel button { width: 100%; padding: 12px 8px; font-size: 18px; }
+.menu-panel button[aria-pressed="false"] { opacity: 0.5; color: var(--g3); }
