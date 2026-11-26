@@ -125,7 +125,7 @@ const LIVE = (() => {
   // ===== 位置など =====
   let W = 360, H = 160, DPR = 1;
   // 上の空きを削った分（--live-cut）は、キャラの大きさに数えない（キャラを小さくしない）
-  const RETREAT_T = 1;   // 撤退：下がる秒数（そのまま中継を閉じる）
+  const RETREAT_T = 1.5;   // 撤退：下がる秒数（そのまま中継を閉じる）
   let CUT = 0;
   const unit = () => (H + CUT) / 160;
   function fighterPos(isL) {
@@ -333,8 +333,8 @@ const LIVE = (() => {
       let pose, dx = 0, white = 0;
       const sinceHit = tn - (p._lh || -9), sinceStrike = tn - (p._ls || -9);
       if (cur.end && cur.end.retreat) {
-        // 撤退：攻めた側は相手を向いたまま、1秒かけて後ろへ下がる（相手は構えたまま）
-        pose = p === cur.end.retreat ? 'idle' : 'defense-2';
+        // 撤退：攻めた側は相手を向いたまま、RETREAT_T 秒かけて後ろへ下がる（守りの姿勢。相手は立ったまま）
+        pose = p === cur.end.retreat ? 'defense-2' : 'idle';
         if (p === cur.end.retreat) dx = (isL ? -1 : 1) * Math.min(1, (tn - cur.end.t) / RETREAT_T) * 70 * u;
       } else if (cur.end) {
         pose = p === cur.end.loser ? 'ko' : 'idle';
