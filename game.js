@@ -825,7 +825,7 @@ let dpr = 1, cs = 60;
 
 // 見た目の傾き（3Dエンジンは使わず、CSS の遠近変形で盤を手前に倒す）
 const VIEW = {
-  TILT: 30,          // 倒す角度（度）
+  TILT: 22,          // 倒す角度（度）
   PERSPECTIVE: 2.2,  // 見る距離（盤の幅の何倍か）。小さいほど遠近が強い
 };
 const PIECE_THICK = 0.3; // 駒の厚み（駒の幅に対する割合）
@@ -1536,7 +1536,8 @@ function startGame(diff, watch = false) {
   // COM対戦では下の欄も「COM」と表示し、回すボタンは隠す
   $('whoYou').textContent = watch ? '青COM' : 'あなた';
   $('whoCpu').textContent = watch ? '赤COM' : 'COM';
-  document.querySelector('.controls').style.visibility = watch ? 'hidden' : '';
+  document.querySelector('.controls').style.display = watch ? 'none' : '';
+  document.documentElement.classList.toggle('watch', !!watch);
   hudCache = '';
 }
 function endGame(winner) {
@@ -1686,7 +1687,7 @@ function backToTitle() {
   G = null;
   $('result').hidden = true;
   $('overlay').hidden = false;
-  document.querySelector('.controls').style.visibility = '';
+  document.querySelector('.controls').style.display = '';
   $('toast').classList.remove('show');
   hudCache = '';
 }

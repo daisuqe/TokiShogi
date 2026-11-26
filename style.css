@@ -13,6 +13,7 @@
 }
 * { box-sizing: border-box; }
 /* ページの一番外側も暗くする（スマホで引っぱったときや、上のノッチのあたりが白く見えないように） */
+html.watch { --reserve: 98px; }
 html { background: var(--g0); color-scheme: dark; --live-h: clamp(130px, 19svh, 170px); }
 html, body { margin: 0; }
 body {
@@ -74,7 +75,7 @@ header .en {
   display: block;
   /* 手前に倒すと下の辺が広がる（30度で約13%）ので、横幅に余裕をとる */
   /* --ar は盤の横÷縦（game.js が入れる）。縦長の盤は高さで幅を決める */
-  width: min(calc((100vw - 8px) * 0.88), 600px, calc((100svh - 178px - var(--live-h)) * var(--ar, 1)));
+  width: min(calc((100vw - 8px) * 0.895), 600px, calc((100svh - var(--reserve, 146px) - var(--live-h)) * var(--ar, 1)));
   min-width: 190px;
   aspect-ratio: var(--ar, 1);
   /* 盤の枠・光は、game.js が盤の部分だけに描く（上下の余白は透明） */
