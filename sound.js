@@ -19,6 +19,8 @@ const SND = (() => {
     if (ac) return ac;
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return null;
+    // iPhone：消音スイッチが入っていても鳴るようにする（iOS 17 以降の Safari / ホーム画面から開いたアプリ）
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
     ac = new AC();
     master = ac.createGain(); master.gain.value = 0.55;
     const comp = ac.createDynamicsCompressor();
@@ -29,7 +31,22 @@ const SND = (() => {
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     return ac;
   }
-  function resume() { const a = ensure(); if (a && a.state === 'suspended') a.resume(); }
+  // 音を使える状態にする。iPhone では 'suspended' のほかに 'interrupted'（アプリが裏に回ったあとなど）もあるので、
+  // 'running' 以外はすべて resume する。ホーム画面から開いたアプリでは、触り終えた時（touchend / click）の
+  // 中で、無音の音を1回鳴らさないと解除されないことがある
+  let unlocked = false;
+  function resume() {
+    const a = ensure();
+    if (!a) return;
+    if (a.state !== 'running') { try { const r = a.resume(); if (r && r.catch) r.catch(() => {}); } catch (e) {} }
+    if (!unlocked) {
+      try {
+        const b = a.createBuffer(1, 1, 22050), src = a.createBufferSource();
+        src.buffer = b; src.connect(a.destination); src.start(0);
+        unlocked = true;
+      } catch (e) {}
+    }
+  }
 
   const env = (g, t, a, peak, dec) => {
     g.gain.setValueAtTime(0.0001, t);
@@ -139,7 +156,8 @@ const SND = (() => {
     const f = sounds[name];
     if (!f) return;
     const a = ensure();
-    if (!a || a.state !== 'running') { if (a && a.state === 'suspended') a.resume(); if (!a || a.state !== 'running') return; }
+    if (!a) return;
+    if (a.state !== 'running') { resume(); if (a.state !== 'running') return; }
     const nowMs = performance.now();
     if (last[name] && nowMs - last[name] < 45) return; // 同じ音が重なりすぎないように
     last[name] = nowMs;
@@ -187,7 +205,10 @@ const SND = (() => {
   function setSe(v) { SETTINGS.se = v; saveSettings(); if (v) { resume(); play('ui'); } }
   function setBgm(v) { SETTINGS.bgm = v; saveSettings(); if (v) { if (bgmWanted) bgmStart(); } else { const w = bgmWanted; bgmStop(); bgmWanted = w; } }
   // 最初の操作で音を使えるようにする（ブラウザの決まり）
-  for (const ev of ['pointerdown', 'keydown', 'touchstart']) window.addEventListener(ev, resume, { once: false, passive: true });
+  for (const ev of ['pointerdown', 'pointerup', 'keydown', 'touchstart', 'touchend', 'click']) window.addEventListener(ev, resume, { once: false, passive: true });
+  // アプリに戻ってきたときも、音を戻す（ホーム画面から開いたアプリは、裏に回ると止まる）
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && ac) resume(); });
+  window.addEventListener('pageshow', () => { if (ac) resume(); });
   return { play, setSe, setBgm, resume, bgmStart, bgmStop };
 })();
 const sfx = (name, side) => { if (typeof G !== 'undefined' && G && G.sim) return; SND.play(name, side); };
