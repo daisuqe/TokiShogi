@@ -328,7 +328,7 @@ button.quit-btn:hover:not(:disabled) { opacity: 1; color: var(--g5); border: non
 
 /* 対戦の中継（試合中、画面の上） */
 .live { width: 100%; height: var(--live-h); }
-#live { display: block; width: 100%; height: 100%; background: #010d06; }
+#live { display: block; width: 100%; height: 100%; }
 
 /* 設定（スタート画面）：効果音・BGM・駒の上のキャラ */
 .settings { display: flex; gap: 6px; justify-content: center; margin-top: 10px; }
@@ -336,5 +336,12 @@ button.quit-btn:hover:not(:disabled) { opacity: 1; color: var(--g5); border: non
 .settings button[aria-pressed="false"] { opacity: 0.5; color: var(--g3); }
 /* 縦画面（スマホ）では、中継の背景を画面の左右いっぱいまで広げる */
 @media (orientation: portrait) {
-  .live { width: 100vw; margin-left: calc(50% - 50vw); }
+  .live { width: 100vw; max-width: 100vw; align-self: center; }  /* mainの中で中央に置かれるので、左右とも画面の端まで */
 }
+
+/* スタート画面：題名の左右に、王（青）と玉（赤）の大きなイラスト（題名の後ろに重なってよい） */
+.title-row { position: relative; display: flex; justify-content: center; align-items: center; min-height: 150px; }
+.title-row h2 { position: relative; z-index: 1; }
+.fig { position: absolute; bottom: 0; height: 150px; width: 110px; z-index: 0; pointer-events: none; }
+.figL { left: -6px; }
+.figR { right: -6px; }

@@ -32,20 +32,19 @@ const LIVE = (() => {
   }
   // 線を軍の色（青・赤）に塗る：白い線を色に、黒い塗りはそのまま
   const tinted = {};
+  // ピクセルを読み出さず、重ね方（合成）だけで塗る。ファイルを直接開いた（file://）ときも動く
   function tint(im, key, color) {
     if (tinted[key] !== undefined) return tinted[key];
     try {
       const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight;
-      const x = c.getContext('2d'); x.drawImage(im, 0, 0);
-      const d = x.getImageData(0, 0, c.width, c.height), px = d.data;
-      const r = parseInt(color.slice(1, 3), 16), g = parseInt(color.slice(3, 5), 16), b = parseInt(color.slice(5, 7), 16);
-      for (let i = 0; i < px.length; i += 4) {
-        const l = (px[i] + px[i + 1] + px[i + 2]) / 765;       // 明るさ 0〜1
-        px[i] = r * l; px[i + 1] = g * l; px[i + 2] = b * l;
-      }
-      x.putImageData(d, 0, 0);
+      const x = c.getContext('2d');
+      x.drawImage(im, 0, 0);
+      x.globalCompositeOperation = 'multiply';          // 白→色、黒→黒
+      x.fillStyle = color; x.fillRect(0, 0, c.width, c.height);
+      x.globalCompositeOperation = 'destination-in';    // 絵のあった所だけ残す
+      x.drawImage(im, 0, 0);
       return (tinted[key] = c);
-    } catch (e) { return (tinted[key] = null); }   // 読み込めない環境では、白い線のまま
+    } catch (e) { return (tinted[key] = null); }
   }
   // 最初に全部読み込んでおく（切り替えのときに絵が遅れないように）
   for (const n of [...Object.values(BASE), ...Object.values(PBASE), 'osho', 'gyokusho']) for (const po of POSES) img(n, po);
@@ -240,9 +239,7 @@ const LIVE = (() => {
   }
 
   function background(u, ts) {
-    const g = ctx.createLinearGradient(0, 0, 0, H);
-    g.addColorStop(0, '#010d06'); g.addColorStop(1, '#03170c');
-    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    // 背景色は塗らない（ページの背景がそのまま見える）。地面のあたりの青・赤だけ
     // 左は青、右は赤の気配：地面のあたり（下から3割）だけ。下が濃く、上へ向かって消える
     const w = Math.round(W * DPR), h = Math.round(H * DPR);
     if (!glowC || glowC.width !== w || glowC.height !== h) {
@@ -416,15 +413,40 @@ const LIVE = (() => {
   }
 
   // 盤の上の駒に重ねる、薄く大きなキャラ（別のキャンバスに描く）。bottom の位置に足、高さ height
-  function figure(c, p, pose, x, bottom, height, face, alpha) {
+  function figure(c, p, pose, x, bottom, height, face, alpha, light) {
     const im = img(baseName(p), pose);
     if (!im.complete || !im.naturalWidth) return;
     const k = height / im.naturalHeight, w = im.naturalWidth * k;
     c.save();
     c.translate(x, bottom); c.scale(face, 1); c.globalAlpha = alpha;
-    c.drawImage(tint(im, baseName(p) + '-' + pose + '-d' + p.side, COL_D[p.side]) || im, -w / 2, -height, w, height);   // 盤の上は、濃い青・赤の線
+    c.drawImage(tint(im, baseName(p) + '-' + pose + '-' + (light ? 'l' : 'd') + p.side, (light ? COL : COL_D)[p.side]) || im, -w / 2, -height, w, height);   // 盤の上は、濃い青・赤の線
     c.restore();
   }
+  // スタート画面の題名の左右：王（青）と玉（赤）
+  function titleFigs() {
+    const L = document.getElementById('figL'), R = document.getElementById('figR');
+    if (!L || !R) return;
+    const dpr = window.devicePixelRatio || 1;
+    const draw = (cv, p, face) => {
+      const w = cv.clientWidth, h = cv.clientHeight;
+      if (!w || !h) return false;
+      cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+      const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const im = img(baseName(p), 'idle');
+      if (!im.complete || !im.naturalWidth) return false;
+      c.shadowColor = COL[p.side]; c.shadowBlur = 10;
+      figure(c, p, 'idle', w / 2, h - 4, h - 8, face, 0.5, true);   // 半透明
+      return true;
+    };
+    let tries = 0;
+    const go = () => {
+      const a = draw(L, { type: 'OU', side: 0, promoted: false }, 1), b = draw(R, { type: 'OU', side: 1, promoted: false }, -1);
+      if (!(a && b) && tries++ < 40) setTimeout(go, 150);
+    };
+    go();
+    window.addEventListener('resize', () => { tries = 0; go(); });
+  }
+  titleFigs();
   requestAnimationFrame(frame);
   return { strike, hit, end, figure };
 })();
