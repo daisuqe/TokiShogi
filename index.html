@@ -24,7 +24,7 @@
 <meta name="apple-mobile-web-app-title" content="刻将棋">
 <link rel="stylesheet" href="font.css?v=20261125b">
 <link rel="stylesheet" href="font-misaki.css?v=20261126a">
-<link rel="stylesheet" href="style.css?v=20261126g">
+<link rel="stylesheet" href="style.css?v=20261126i">
 </head>
 <body>
 <main>
@@ -68,6 +68,19 @@
       <canvas id="figR" class="fig figR" aria-hidden="true"></canvas>
     </div>
     <p class="sub">リアルタイム将棋</p>
+    <div class="diff">
+      <button data-diff="easy2">おそい<br>やさしい</button>
+      <button data-diff="easy">やさしい</button>
+      <button data-diff="normal" class="primary">ふつう</button>
+      <button data-diff="hard">つよい</button>
+      <button id="watch">COM対戦</button>
+    </div>
+    <!-- 設定：効果音・BGM・駒の上のキャラ（ブラウザに覚えておく） -->
+    <div class="settings">
+      <button id="setSe" type="button"></button>
+      <button id="setBgm" type="button"></button>
+      <button id="setChara" type="button"></button>
+    </div>
     <!-- 前半：これだけは知っておく必要があるルール -->
     <ul class="rules">
       <li>順番はありません。<b>王（玉）を取ったら勝ち</b>。</li>
@@ -84,24 +97,11 @@
       <li>敵陣（色のついた2段）で、成りボタンで成る</li>
       <li>動き出した駒の元のマスには、その駒がマスを離れるまで入れない</li>
     </ul>
-    <div class="diff">
-      <button data-diff="easy2">おそい<br>やさしい</button>
-      <button data-diff="easy">やさしい</button>
-      <button data-diff="normal" class="primary">ふつう</button>
-      <button data-diff="hard">つよい</button>
-      <button id="watch">COM対戦</button>
-    </div>
-    <!-- 設定：効果音・BGM・駒の上のキャラ（ブラウザに覚えておく） -->
-    <div class="settings">
-      <button id="setSe" type="button"></button>
-      <button id="setBgm" type="button"></button>
-      <button id="setChara" type="button"></button>
-    </div>
   </div>
   <!-- 右上：アプリ一覧へ移動するボタン（アイコンは game.js が 16×16 のデータから描く） -->
   <button id="appsBtn" class="apps-btn" type="button" aria-label="App list" aria-haspopup="dialog"><canvas id="appsIcon" width="16" height="16"></canvas></button>
   <!-- 下端：著作権の表示。押すと LICENSE の内容を出す -->
-  <button id="copyright" class="copyright" type="button" aria-haspopup="dialog">© 2026 daisuqe. All rights reserved.</button>
+  <button id="copyright" class="copyright" type="button" aria-haspopup="dialog">© 2026 daisuqe. All rights reserved.<span id="build" class="build"></span></button>
 </div>
 
 <!-- スマホを横にしたときは試合を止めて案内する -->
@@ -160,5 +160,9 @@ daisuqe が保有します。著作権者の事前の書面による許可なく
 <script src="sound.js?v=20261126f"></script>
 <script src="game.js?v=20261126h"></script>
 <script src="live.js?v=20261126n"></script>
+<script>
+/* ビルド番号：style.css の ?v= の値（更新のたびに変える版数）をそのまま出す */
+(function(){var l=document.querySelector('link[href^="style.css"]'),m=l&&/[?&]v=([^&]+)/.exec(l.getAttribute("href")),e=document.getElementById("build");if(e&&m)e.textContent="build "+m[1];})();
+</script>
 </body>
 </html>

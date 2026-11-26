@@ -48,7 +48,7 @@ b, strong, h1, h2 { font-weight: normal; }
 main {
   max-width: 640px;
   margin: 0 auto;
-  padding: 10px 16px 16px;
+  padding: 8px 4px 8px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -69,12 +69,12 @@ header .en {
   color: var(--g3);
   margin-left: 0.6em;
 }
-.boardwrap { position: relative; margin-bottom: 10px; }
+.boardwrap { position: relative; margin-bottom: 6px; }
 #board {
   display: block;
   /* 手前に倒すと下の辺が広がる（30度で約13%）ので、横幅に余裕をとる */
   /* --ar は盤の横÷縦（game.js が入れる）。縦長の盤は高さで幅を決める */
-  width: min(calc((100vw - 32px) * 0.86), 580px, calc((100svh - 218px - var(--live-h)) * var(--ar, 1)));
+  width: min(calc((100vw - 8px) * 0.88), 600px, calc((100svh - 178px - var(--live-h)) * var(--ar, 1)));
   min-width: 190px;
   aspect-ratio: var(--ar, 1);
   /* 盤の枠・光は、game.js が盤の部分だけに描く（上下の余白は透明） */
@@ -129,16 +129,16 @@ button.primary {
 #rotL, #rotR, #promoBtn {
   flex: 1 1 0;
   display: inline-flex; align-items: center; justify-content: center; gap: 10px;
-  font-size: 24px; padding: 14px 22px; min-height: 72px;
+  font-size: 18px; padding: 8px 12px; min-height: 48px;
   touch-action: manipulation;
 }
-.rot { width: 36px; height: 36px; flex: none; }
+.rot { width: 26px; height: 26px; flex: none; }
 .rot path { fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: butt; }
 .rot polygon { fill: currentColor; }
 @media (max-width: 480px) {
   .controls { width: 100%; }
-  #rotL, #rotR, #promoBtn { font-size: 16px; padding: 12px 4px; gap: 4px; }
-  .rot { width: 32px; height: 32px; }
+  #rotL, #rotR, #promoBtn { font-size: 15px; padding: 6px 2px; gap: 3px; }
+  .rot { width: 24px; height: 24px; }
 }
 /* 指で操作する端末ではキーの表示は出さない */
 @media (pointer: coarse) { kbd { display: none; } }
@@ -147,7 +147,7 @@ button.primary {
 .portrait p { margin: 0; }
 kbd { font-size: 11px; color: var(--g3); font-family: inherit; }
 .diff small { display: block; font-size: 16px; color: var(--g3); margin-top: 4px; }
-.hint { margin: 0; font-size: 16px; color: var(--g3); min-height: 1.4em; text-align: center; }
+.hint { margin: 0; font-size: 14px; color: var(--g3); min-height: 1.4em; text-align: center; }
 .toast {
   position: absolute; left: 50%; top: 45%;
   transform: translate(-50%, -50%);
@@ -235,6 +235,7 @@ kbd { font-size: 11px; color: var(--g3); font-family: inherit; }
 }
 button.copyright:hover:not(:disabled) { color: var(--g5); opacity: 1; box-shadow: none; }
 .copyright:focus-visible { outline: 1px solid var(--g4); outline-offset: 2px; opacity: 1; }
+.copyright .build { margin-left: 10px; opacity: 0.8; }
 .copyright-note {
   margin-top: 16px !important;
   font-family: "TokiFont", sans-serif; font-size: 11px; color: var(--g3);
@@ -331,7 +332,7 @@ button.quit-btn:hover:not(:disabled) { opacity: 1; color: var(--g5); border: non
 #live { display: block; width: 100%; height: 100%; }
 
 /* 設定（スタート画面）：効果音・BGM・駒の上のキャラ */
-.settings { display: flex; gap: 6px; justify-content: center; margin-top: 10px; }
+.settings { display: flex; gap: 6px; justify-content: center; margin: 10px 0 18px; }
 .settings button { flex: 1 1 0; min-width: 0; padding: 6px 2px; font-size: 13px; letter-spacing: 0.04em; }
 .settings button[aria-pressed="false"] { opacity: 0.5; color: var(--g3); }
 /* 縦画面（スマホ）では、中継の背景を画面の左右いっぱいまで広げる */
