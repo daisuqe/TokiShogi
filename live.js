@@ -118,7 +118,9 @@ const LIVE = (() => {
 
   // ===== 位置など =====
   let W = 360, H = 160, DPR = 1;
-  const unit = () => H / 160;
+  // 上の空きを削った分（--live-cut）は、キャラの大きさに数えない（キャラを小さくしない）
+  let CUT = 0;
+  const unit = () => (H + CUT) / 160;
   function fighterPos(isL) {
     const u = unit();
     return { x: isL ? cur.xl : cur.xr, y: H - 12 * u };
@@ -131,6 +133,7 @@ const LIVE = (() => {
       canvas.width = Math.round(w * DPR); canvas.height = Math.round(h * DPR);
     }
     W = w; H = h;
+    CUT = parseFloat(getComputedStyle(canvas).getPropertyValue('--live-cut')) || 0;
     return true;
   }
 

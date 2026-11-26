@@ -859,12 +859,13 @@ function balanceGaps() {
   const hudBottom = document.querySelector('.hud.you').getBoundingClientRect().top;
   const gapTop = cy + proj(vTop) - hudTop, gapBottom = hudBottom - (cy + proj(vBottom));
   // 盤の外の上下の隙間は、それぞれマスの半分あれば十分。余った分は、下の情報欄を引き上げて詰める
-  const want = cell * 0.5;
-  const excess = Math.max(0, gapTop + gapBottom - 2 * want);
+  // 上（相手の欄との隙間）は、その7割にする
+  const wantTop = cell * 0.5 * 0.7, wantBottom = cell * 0.5;
+  const excess = Math.max(0, gapTop + gapBottom - wantTop - wantBottom);
   const marginBottom = parseFloat(getComputedStyle(wrap).marginBottom) || 0;
   wrap.style.marginBottom = (marginBottom - excess) + 'px';
-  // そのうえで、上の隙間と下の隙間が同じになるように、画面上で上下にずらす
-  VIEW.shift = (gapTop - (gapBottom - excess)) / 2;
+  // そのうえで、上下の隙間が、それぞれ狙いの大きさに近づくように、画面上で上下にずらす
+  VIEW.shift = ((gapTop - wantTop) - (gapBottom - excess - wantBottom)) / 2;
   canvas.style.translate = `0 ${-VIEW.shift}px`;
 }
 
