@@ -1649,12 +1649,12 @@ appsDlg.addEventListener('click', e => { if (e.target === appsDlg) closeApps(); 
 // ダイアログが開いている間は、ゲームのキー操作を止める（先に受け取って、ゲーム側へ渡さない）。
 // Enter / Space はボタンの標準の動き（押す）に任せる
 window.addEventListener('keydown', e => {
-  const dlg = !quitDlg.hidden ? quitDlg : !appsDlg.hidden ? appsDlg : !licenseDlg.hidden ? licenseDlg : null;
+  const dlg = !menuDlg.hidden ? menuDlg : !quitDlg.hidden ? quitDlg : !appsDlg.hidden ? appsDlg : !licenseDlg.hidden ? licenseDlg : null;
   if (!dlg) return;
   const btns = [...dlg.querySelectorAll('button')];
   if (e.key === 'Escape') {
     e.preventDefault();
-    dlg === quitDlg ? closeQuit() : dlg === appsDlg ? closeApps() : closeLicense();
+    dlg === menuDlg ? closeMenu() : dlg === quitDlg ? cancelQuit() : dlg === appsDlg ? closeApps() : closeLicense();
   } else if (e.key === 'Tab' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
     // フォーカスをダイアログのボタンの中だけで回す
     e.preventDefault();
@@ -1665,25 +1665,39 @@ window.addEventListener('keydown', e => {
   e.stopImmediatePropagation();
 }, true);
 
-// ===== 試合中の右上の×：試合を終了してトップ画面へ戻る =====
+// ===== 試合中の右上の×：メニュー（試合に戻る・設定・トップに戻る）=====
+const menuDlg = $('menuDlg');
 const quitDlg = $('quitDlg');
-function openQuit() {
+function openMenu() {
   if (!G) return;
+  G.paused = true; // メニューが出ている間は試合を止める
+  menuDlg.hidden = false;
+  $('menuResume').focus();
+}
+function closeMenu() {
+  if (G) G.paused = false;
+  menuDlg.hidden = true;
+  $('quitBtn').focus();
+}
+// 「トップに戻る」：確認を出す（試合は止めたまま）
+function openQuit() {
   $('quitMsg').textContent = isJapanese()
     ? '試合を終了してトップ画面に戻りますか?'
     : 'End the game and return to the title screen?';
-  G.paused = true; // 確認が出ている間は試合を止める
+  menuDlg.hidden = true;
   quitDlg.hidden = false;
   $('quitNo').focus(); // 誤操作を防ぐため「No」を選んでおく
 }
-function closeQuit() {
-  if (G) G.paused = false;
+// 確認で「No」：メニューに戻る
+function cancelQuit() {
   quitDlg.hidden = true;
-  $('quitBtn').focus();
+  menuDlg.hidden = false;
+  $('menuTop').focus();
 }
 function backToTitle() {
   SND.bgmStop();
   quitDlg.hidden = true;
+  menuDlg.hidden = true;
   G = null;
   $('result').hidden = true;
   $('overlay').hidden = false;
@@ -1691,24 +1705,29 @@ function backToTitle() {
   $('toast').classList.remove('show');
   hudCache = '';
 }
-$('quitBtn').addEventListener('click', openQuit);
+$('quitBtn').addEventListener('click', openMenu);
+$('menuResume').addEventListener('click', closeMenu);
+$('menuTop').addEventListener('click', openQuit);
 $('quitYes').addEventListener('click', backToTitle);
-$('quitNo').addEventListener('click', closeQuit);
-quitDlg.addEventListener('click', e => { if (e.target === quitDlg) closeQuit(); }); // 外側を押したら閉じる
+$('quitNo').addEventListener('click', cancelQuit);
+menuDlg.addEventListener('click', e => { if (e.target === menuDlg) closeMenu(); }); // 外側を押したら閉じる
+quitDlg.addEventListener('click', e => { if (e.target === quitDlg) cancelQuit(); });
 
 // ボタンを押した音（回す・成りは、それぞれの音があるので除く）
 document.addEventListener('click', e => {
   const b = e.target.closest && e.target.closest('button');
-  if (b && !['rotL', 'rotR', 'promoBtn', 'setSe'].includes(b.id)) SND.play('ui');
+  if (b && !['rotL', 'rotR', 'promoBtn', 'setSe', 'menuSe'].includes(b.id)) SND.play('ui');
 });
 
 // 設定ボタン（スタート画面）：効果音・BGM・駒の上のキャラ
 (function () {
-  const items = [['setSe', 'se', 'SE', v => SND.setSe(v)], ['setBgm', 'bgm', 'BGM', v => SND.setBgm(v)], ['setChara', 'chara', 'CHARA', () => {}]];
-  for (const [id, key, name, fn] of items) {
-    const b = $(id);
-    const show = () => { b.textContent = `${name} ${SETTINGS[key] ? 'ON' : 'OFF'}`; b.setAttribute('aria-pressed', SETTINGS[key] ? 'true' : 'false'); };
+  const items = [['se', 'SE', 'サウンド（効果音）', v => SND.setSe(v)], ['bgm', 'BGM', 'サウンド（BGM）', v => SND.setBgm(v)], ['chara', 'CHARA', '駒の上のキャラ', () => {}]];
+  const cap = { se: 'Se', bgm: 'Bgm', chara: 'Chara' };
+  for (const [key, name, label, fn] of items) {
+    // スタート画面（set〜）とメニュー（menu〜）の両方のボタンを同じ設定につなぐ
+    const bs = [[$('set' + cap[key]), `${name} `], [$('menu' + cap[key]), `${label} `]];
+    const show = () => { for (const [b, t] of bs) { b.textContent = t + (SETTINGS[key] ? 'ON' : 'OFF'); b.setAttribute('aria-pressed', SETTINGS[key] ? 'true' : 'false'); } };
     show();
-    b.addEventListener('click', () => { SETTINGS[key] = !SETTINGS[key]; saveSettings(); fn(SETTINGS[key]); show(); });
+    for (const [b] of bs) b.addEventListener('click', () => { SETTINGS[key] = !SETTINGS[key]; saveSettings(); fn(SETTINGS[key]); show(); });
   }
 })();
