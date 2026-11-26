@@ -212,6 +212,7 @@ function startMove(p, t) {
   if (p.state === 'grappled') {
     const g = G.grapples.find(g => g.atk === p);
     if (!g) return;
+    live('retreat', g); // 中継：攻めた側が1秒ぶん下がって、画面を閉じる
     G.grapples = G.grapples.filter(q => q !== g);
     g.def.state = 'idle';
   }

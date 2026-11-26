@@ -99,6 +99,12 @@ const LIVE = (() => {
     shake = Math.max(shake, 3.5 * u);
     flash = Math.max(flash, 0.22); flashColor = p.side === 0 ? '120,170,255' : '255,110,120';
   }
+  // 攻めた側が組み合いから離れる：その駒が1秒ぶん後ろへ下がって、中継を終える
+  function retreat(g) {
+    if (!cur || cur.g !== g || cur.end) return;
+    cur.hpL = cur.L.hp; cur.hpR = cur.R.hp;
+    cur.end = { t: now(), loser: null, winner: null, retreat: g.atk };
+  }
   function end(g, atkWins) {
     if (!cur || cur.g !== g) return;
     const loser = atkWins ? g.def : g.atk;
@@ -119,6 +125,7 @@ const LIVE = (() => {
   // ===== 位置など =====
   let W = 360, H = 160, DPR = 1;
   // 上の空きを削った分（--live-cut）は、キャラの大きさに数えない（キャラを小さくしない）
+  const RETREAT_T = 1;   // 撤退：下がる秒数（そのまま中継を閉じる）
   let CUT = 0;
   const unit = () => (H + CUT) / 160;
   function fighterPos(isL) {
@@ -197,7 +204,7 @@ const LIVE = (() => {
     if (seenG !== G) { seenG = G; cur = null; parts = []; rings = []; slashes = []; beams = []; texts = []; }
     if (G) {
       if (cur && !cur.end && !G.grapples.includes(cur.g)) cur.end = cur.end || { t: now(), loser: null, winner: null }; // 知らせが来なかったとき
-      if (cur && cur.end && now() - cur.end.t > 2.2) cur = null;
+      if (cur && cur.end && now() - cur.end.t > (cur.end.retreat ? RETREAT_T : 2.2)) cur = null;
       // 王の試合が始まったら、いまの試合の途中でも切り替える
       if (cur && !cur.end && !isKing(cur.g) && G.grapples.some(isKing)) cur = null;
       if (!cur && !G.over) {
@@ -325,7 +332,11 @@ const LIVE = (() => {
       const pos = fighterPos(isL);
       let pose, dx = 0, white = 0;
       const sinceHit = tn - (p._lh || -9), sinceStrike = tn - (p._ls || -9);
-      if (cur.end) {
+      if (cur.end && cur.end.retreat) {
+        // 撤退：攻めた側は相手を向いたまま、1秒かけて後ろへ下がる（相手は構えたまま）
+        pose = p === cur.end.retreat ? 'idle' : 'defense-2';
+        if (p === cur.end.retreat) dx = (isL ? -1 : 1) * Math.min(1, (tn - cur.end.t) / RETREAT_T) * 70 * u;
+      } else if (cur.end) {
         pose = p === cur.end.loser ? 'ko' : 'idle';
         if (p === cur.end.loser) dx = (isL ? -1 : 1) * Math.min(1, (tn - cur.end.t) / 0.5) * 22 * u;
       } else if (intro < 0.6) pose = 'idle';
@@ -334,7 +345,7 @@ const LIVE = (() => {
         pose = sinceStrike < 0.6 ? 'attack-2' : 'attack-1';
         if (sinceStrike < 0.5) dx = (isL ? 1 : -1) * Math.sin(Math.PI * Math.min(1, sinceStrike / 0.5)) * 12 * u;   // 踏み込む
       } else pose = 'defense-2';
-      const breath = cur.end && p !== cur.end.loser ? -Math.abs(Math.sin(ts * 5)) * 5 * u : 0;
+      const breath = cur.end && !cur.end.retreat && p !== cur.end.loser ? -Math.abs(Math.sin(ts * 5)) * 5 * u : 0;
       const k = 100 * u / 148 * sizeOf(p);
       drawSprite(p, pose, pos.x + dx, pos.y + breath, k, isL ? 1 : -1, 1, COL[p.side], white);
     };
@@ -451,5 +462,5 @@ const LIVE = (() => {
   }
   titleFigs();
   requestAnimationFrame(frame);
-  return { strike, hit, end, figure };
+  return { strike, hit, end, retreat, figure };
 })();
