@@ -338,6 +338,8 @@ button.quit-btn:hover:not(:disabled) { opacity: 1; color: var(--g5); border: non
 .settings button[aria-pressed="false"] { opacity: 0.5; color: var(--g3); }
 /* 縦画面（スマホ）では、中継の背景を画面の左右いっぱいまで広げる */
 @media (orientation: portrait) {
+  html { --live-cut: 18px; --live-h: calc(clamp(130px, 19svh, 170px) - var(--live-cut)); }
+  main { padding-top: 0; }
   .live { width: 100vw; max-width: 100vw; align-self: center; }  /* mainの中で中央に置かれるので、左右とも画面の端まで */
 }
 
