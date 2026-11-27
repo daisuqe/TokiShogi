@@ -24,6 +24,10 @@
 | `style.css` | 見た目 |
 | `game.js` | ルール・COM・描画 |
 | `live.js` | 画面の上の対戦の中継（組み合いを1試合ずつ映す） |
+| `rank-core.js` | ランキングの計算（Elo・順位・相手選び）。ゲームとサーバーで共通 |
+| `rank-client.js` | ランキングの窓口（端末の中だけ／サーバー）。`RANK_API` にサーバーの URL を入れる |
+| `rank-ui.js` | ランキング戦の画面（登録・結果・順位表） |
+| `server/` | ランキングサーバー（Cloudflare Workers + D1）。`server/README.md` を見てください |
 | `sound.js` | 効果音（和風。音のファイルは使わず、ブラウザで作る） |
 | `image/` | 中継に映す駒の絵（駒ごとに idle・attack-1/2・defense-1/2・ko） |
 | `font-misaki.css` | カウントダウン（数字と START!）だけの美咲ゴシック |

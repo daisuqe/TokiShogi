@@ -27,13 +27,23 @@ const CFG = {
 //  act   : 手を出すのに必要な「よくなる点数」の最低ライン（大きいほど慎重）
 //  noise : 手の選び方のいいかげんさ（大きいほど、ぼんやり選ぶ）
 //  roll  : 先読み。k=候補の数、n=1候補ごとに試す回数、h=何秒先まで試すか（多いほど強い）
-//  speed : 時間の進む速さ（0.5 = 1/2。移動3秒が実際には6秒になる）
+//  （時間の進む速さは、設定の秒数 SETTINGS.sec から決まる。6秒なら 0.5 = 1/2、移動3秒が実際には6秒になる）
 const DIFF = {
-  easy:   { think: 2.8, jitter: 1.2, react: 1.4, notice: 0.35, act: 1,   noise: 14, speed: 1,   roll: { k: 3, n: 1, h: 8 } },
-  easy2:  { think: 2.8, jitter: 1.2, react: 1.4, notice: 0.35, act: 1,   noise: 14, speed: 0.5, roll: { k: 3, n: 1, h: 8 } },  // おそい やさしい
-  normal: { think: 1.8, jitter: 0.8, react: 0.9, notice: 0.7,  act: 1,   noise: 6,  speed: 1,   roll: { k: 4, n: 3, h: 12 } },
-  hard:   { think: 1.0, jitter: 0.5, react: 0.6, notice: 0.9,  act: 10,  noise: 1,  speed: 1,   roll: { k: 8, n: 10, h: 20 } },
+  easy:   { think: 2.8, jitter: 1.2, react: 1.4, notice: 0.35, act: 1,   noise: 14, roll: { k: 3, n: 1, h: 8 } },
+  normal: { think: 1.8, jitter: 0.8, react: 0.9, notice: 0.7,  act: 1,   noise: 6,  roll: { k: 4, n: 3, h: 12 } },
+  hard:   { think: 1.0, jitter: 0.5, react: 0.6, notice: 0.9,  act: 10,  noise: 1,  roll: { k: 8, n: 10, h: 20 } },
 };
+
+// ランキング戦の COM：強さ s（0〜1）から、かんたん(0)・ふつう(0.5)・むずかしい(1) の間を補って作る
+function diffFor(s) {
+  const lo = s < 0.5 ? DIFF.easy : DIFF.normal, hi = s < 0.5 ? DIFF.normal : DIFF.hard;
+  const t = s < 0.5 ? s / 0.5 : (s - 0.5) / 0.5;
+  const mix = (a, b) => a + (b - a) * t;
+  const d = {};
+  for (const k of ['think', 'jitter', 'react', 'notice', 'act', 'noise']) d[k] = mix(lo[k], hi[k]);
+  d.roll = { k: Math.round(mix(lo.roll.k, hi.roll.k)), n: Math.round(mix(lo.roll.n, hi.roll.n)), h: Math.round(mix(lo.roll.h, hi.roll.h)) };
+  return d;
+}
 
 // ===== 駒の動き（前 = (0,-1)、右 = (1,0) として書き、向きで回す） =====
 const KING_STEPS = [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
@@ -81,10 +91,12 @@ const LAYOUTS = {
   '7x7': { back: ['KY','KE','GI','OU','KI','KE','KY'], mid: ['FU','HI','FU',null,'FU','KA','FU'] },
   '5x7': { back: ['KY','GI','OU','KI','KE'],           mid: ['FU','HI','FU','KA','FU'] },
 };
-function newGame(diff, watch = false) {
+function newGame(diff, watch = false, rank = null) {
   G = {
+    rank, style: [null, rank ? rank.params : null], // style：うち筋の傾向（ランキング戦の相手）。stats：あなたのうち筋の記録
+    stats: { times: [], moves: 0, caps: 0, fwd: 0, helps: 0, rots: 0, promos: 0, retreats: 0, kdN: 0, kdS: 0, kdNext: 1 },
     pieces: [], grapples: [], fx: [], shots: [], sparks: [], rings: [], pops: [], time: 0, over: false, winner: -1,
-    diff, watch, speed: DIFF[diff].speed, realTime: 0, cpuT: 2.0, cpuT0: 2.3, sel: null,
+    diff, watch, speed: 3 / SETTINGS.sec, realTime: 0, cpuT: 2.0, cpuT0: 2.3, sel: null,
     actAt: [0, 0], lastAct: [0, 0], thinking: [false, false], countdown: CFG.COUNTDOWN, startFlash: 0, nextId: 1, captured: [[], []],
   };
   // 自分（下）の並びを置き、相手（上）は点対称に置く
@@ -208,7 +220,38 @@ function supporters(side, cx, cy, exclude) {
 }
 
 // ===== 行動 =====
+// あなたのうち筋の記録（ランキング用）：指示の間隔、攻め、助太刀、回転、成り、組み合いから引く回数
+function track(p, kind, t) {
+  if (G.sim || G.watch || p.side !== 0) return;
+  const st = G.stats;
+  st.times.push(G.time);
+  if (kind === 'move') {
+    st.moves++;
+    if (t.cap) st.caps++;
+    if (t.y < p.y) st.fwd++;
+    if (!t.cap && helpsAt(p, t.x, t.y)) st.helps++;
+    if (p.state === 'grappled') st.retreats++;
+  } else if (kind === 'rot') st.rots++;
+  else if (kind === 'promo') st.promos++;
+}
+// 記録から、うち筋の傾向（0〜1）を作る
+function styleFromStats() {
+  const st = G.stats, n = Math.max(1, st.times.length), mv = Math.max(1, st.moves);
+  const c01 = x => Math.max(0, Math.min(1, x));
+  let gap = CFG.ACT_GAP * 2;   // 指示の間隔（ゲーム内の秒）の平均。最小の間隔なら速い、2倍以上なら遅い
+  if (st.times.length > 1) gap = (st.times[st.times.length - 1] - st.times[0]) / (st.times.length - 1);
+  return {
+    aggr: c01(0.5 * c01(st.caps / mv * 3) + 0.5 * st.fwd / mv),
+    tempo: c01(1 - (gap / CFG.ACT_GAP - 1) / 2),
+    support: c01(st.helps / mv * 3),
+    rotation: c01(st.rots / n * 4),
+    promote: c01(st.promos / 3),
+    kingDef: st.kdN ? c01(st.kdS / st.kdN) : 0.5,
+    retreat: c01(st.retreats / n * 8),
+  };
+}
 function startMove(p, t) {
+  track(p, 'move', t);
   if (p.state === 'grappled') {
     const g = G.grapples.find(g => g.atk === p);
     if (!g) return;
@@ -232,6 +275,7 @@ function canPromote(p) {
 }
 // 成りも1手。回転と同じく、3秒かけて成り、そのあと3秒休む
 function startPromote(p) {
+  track(p, 'promo');
   G.actAt[p.side] = G.time + CFG.ACT_GAP;
   G.lastAct[p.side] = G.time;
   p.state = 'promoting';
@@ -239,6 +283,7 @@ function startPromote(p) {
   p.t = 0; p.dur = CFG.PROMOTE_TIME;
 }
 function startRotate(p, d) {
+  track(p, 'rot');
   G.actAt[p.side] = G.time + CFG.ACT_GAP; // 回し始めるのも1手。回転はそのまま続く
   G.lastAct[p.side] = G.time;
   p.state = 'rotating';
@@ -420,6 +465,12 @@ function update(realDt) {
     }
   }
   if (G.over) return;
+  // 王の守り：1秒ごとに、自分の王のまわりに助太刀できる駒がいるかを記録する（ランキング用）
+  if (!G.watch && G.time >= G.stats.kdNext) {
+    G.stats.kdNext = G.time + 1;
+    const ku = G.pieces.find(p => p.side === 0 && p.type === 'OU' && p.state === 'idle');
+    if (ku) { G.stats.kdN++; if (supporters(0, ku.x, ku.y, ku).length >= 1) G.stats.kdS++; }
+  }
 
   updateGrapples(dt);
   if (G.over) return;
@@ -465,7 +516,8 @@ function update(realDt) {
   if (G.cpuT <= 0) {
     cpuThink();
     const d = DIFF[G.diff];
-    G.cpuT = d.think + Math.random() * d.jitter;
+    const tempo = G.style && G.style[1] && typeof G.style[1].tempo === 'number' ? 0.7 + 0.6 * G.style[1].tempo : 1; // 指示の速い人は、考える間隔も短い
+    G.cpuT = (d.think + Math.random() * d.jitter) / tempo;
   }
 }
 
@@ -502,6 +554,9 @@ function cpuThink(S = 1, dk = G.diff, sync = false) {
   if (!sync && D.roll && !G.sim && G.thinking[S]) return; // 先読み中は、二重に考えない
   const O = 1 - S;
   const fwd = S === 1 ? 1 : -1; // 前の向き（y が増える／減る）
+  // うち筋の傾向（ランキング戦の相手）：0.5 が標準。0〜1 を 0.5〜1.5 倍にして、点数の重みにかける
+  const sty = G.style && G.style[S];
+  const sm = k => 0.5 + (sty && typeof sty[k] === 'number' ? sty[k] : 0.5);
   const mine = G.pieces.filter(p => p.side === S);
   const readyP = p => p.state === 'idle' && !(p.cool > 0);
   const V = p => p.type === 'OU' ? 120 : (VALUE[p.type] + (p.promoted ? 2 : 0)) * 3;
@@ -566,7 +621,7 @@ function cpuThink(S = 1, dk = G.diff, sync = false) {
     for (const g of G.grapples) if (g.atk.side === S || g.def.side === S) grap += grappleScore(g);
     // 王のまわりの守り：助太刀が2体いれば、乗られても返り討ちにできる。ふだんから形を作っておく
     let shield = 0;
-    for (const p of mine) if (p.type === 'OU' && p.state === 'idle') shield += CFG.SHIELD * Math.min(2, supporters(S, p.x, p.y, p).length);
+    for (const p of mine) if (p.type === 'OU' && p.state === 'idle') shield += CFG.SHIELD * sm('kingDef') * Math.min(2, supporters(S, p.x, p.y, p).length);
     // 敵の王へ近づく：いちばん近い駒との距離が縮まるほど点数（とどめを刺しに行く道すじ）
     let hunt = 0;
     const ek = G.pieces.find(p => p.side === O && p.type === 'OU');
@@ -576,7 +631,7 @@ function cpuThink(S = 1, dk = G.diff, sync = false) {
         if (p.type === 'OU' || p.hp < 40 || p.state === 'grappled') continue;
         dmin = Math.min(dmin, Math.max(Math.abs(p.x - ek.x), Math.abs(p.y - ek.y)));
       }
-      if (dmin < 99) hunt = -CFG.HUNT * dmin;
+      if (dmin < 99) hunt = -CFG.HUNT * sm('aggr') * dmin;
     }
     return -risk + 0.5 * opp + grap + shield + hunt;
   };
@@ -607,14 +662,17 @@ function cpuThink(S = 1, dk = G.diff, sync = false) {
         const win = tDef <= tAtk;
         const dmg = win ? Math.min(1, (tDef * CFG.SUP * defSup) / Math.max(1, p.hp)) : 1;
         imm = win ? V(e) * (e.type === 'OU' ? 8 : 1) - V(p) * dmg * 0.6 : -V(p);
+        imm += (sm('aggr') - 1) * 10; // 攻撃的な人は、乗る手を好む
         if (p.type === 'OU') imm -= 40; // 王で攻めるのは最後の手段
         p.x = o.x; p.y = o.y; p.state = 'grappled'; const es = e.state; e.state = 'grappled';
         eArr = evaluate();
         e.state = es;
       } else {
         p.state = 'idle'; p.x = o.x; p.y = o.y;
-        eArr = evaluate() + 0.4 * Math.max(0, (o.y - sy) * fwd);
+        eArr = evaluate() + 0.4 * sm('aggr') * Math.max(0, (o.y - sy) * fwd);
+        if (helpsAt(p, o.x, o.y)) imm += (sm('support') - 1) * 8; // 助太刀に入る人は、助太刀になる手を好む
       }
+      if (sst === 'grappled') imm += (sm('retreat') - 1) * 8;       // 組み合いから引く人は、引く手を好む
       restore();
       cands.push({ p, o, score: 0.5 * (eNow - base) + 0.5 * (eArr - base) + imm + noise() });
     }
@@ -627,7 +685,7 @@ function cpuThink(S = 1, dk = G.diff, sync = false) {
       p.state = 'idle'; p.dir = (p.dir + d + 4) % 4;
       const eArr = evaluate();
       restore();
-      const raw = 0.5 * (eNow - base) + 0.5 * (eArr - base) - 1.5;
+      const raw = 0.5 * (eNow - base) + 0.5 * (eArr - base) - 1.5 + (sm('rotation') - 1) * 3;
       if (raw <= 0) continue;
       cands.push({ p, rot: d, score: raw + noise() });
     }
@@ -639,7 +697,7 @@ function cpuThink(S = 1, dk = G.diff, sync = false) {
       const eArr = evaluate();
       restore();
       const bonus = { FU: 6, KY: 6, KE: 7, GI: 5, HI: 12, KA: 12 }[p.type] || 5;
-      cands.push({ p, promote: true, score: 0.5 * (eNow - base) + 0.5 * (eArr - base) + bonus + noise() });
+      cands.push({ p, promote: true, score: 0.5 * (eNow - base) + 0.5 * (eArr - base) + bonus * sm('promote') + noise() });
     }
   }
 
@@ -706,7 +764,7 @@ function cloneForRollout() {
     map,
     g: {
       pieces, grapples, fx: [], shots: [], sparks: [], rings: [], pops: [],
-      time: G.time, over: false, winner: -1, diff: G.diff, watch: false, speed: 1, realTime: 0,
+      time: G.time, over: false, winner: -1, diff: G.diff, style: G.style, watch: false, speed: 1, realTime: 0,
       cpuT: 1e9, cpuT0: 1e9, sel: null, actAt: G.actAt.slice(), lastAct: G.lastAct.slice(),
       countdown: 0, startFlash: 0, nextId: G.nextId, captured: [[...G.captured[0]], [...G.captured[1]]], sim: true,
     },
@@ -1419,7 +1477,7 @@ function updateHud() {
   const caps = side => G.captured[side].map(t => LABEL[t]).join('') || '—';
   const sel = G.sel && G.pieces.includes(G.sel) ? G.sel : null;
   const myGrapple = G.grapples.some(g => g.atk.side === 0 || g.def.side === 0);
-  let hint = G.watch ? 'COM対戦を観戦中'
+  let hint = G.watch ? (G.over && G.overAt ? `${G.winner === 0 ? '青' : '赤'}の勝ち。次の対戦まで ${Math.max(1, Math.ceil(WATCH_NEXT - (performance.now() - G.overAt) / 1000))}秒` : 'COM対戦を観戦中')
     : myGrapple ? '組み合い中! 隣のマスに、そこへ動ける向きの駒を置くと助太刀になります'
     : '自分の駒（青）を選んでください';
   if (sel && !G.watch) {
@@ -1524,24 +1582,27 @@ window.addEventListener('keydown', e => {
 
 // 最初の画面のルール説明の秒数は CFG から入れる（数字を変えても説明がずれないように）
 function fillRuleNumbers() {
-  document.querySelectorAll('[data-t]').forEach(el => { el.textContent = CFG[el.dataset.t] + '秒'; });
+  document.querySelectorAll('[data-t]').forEach(el => { el.textContent = Math.round(CFG[el.dataset.t] * SETTINGS.sec / 3) + '秒'; });
 }
 fillRuleNumbers();
 
 // ===== 開始と終わり =====
-function startGame(diff, watch = false) {
+function startGame(diff, watch = false, rank = null) {
   SND.bgmStop();
-  newGame(diff, watch);
+  if (rank) { DIFF.rank = diffFor(rank.strength); diff = 'rank'; } // ランキング戦：相手の強さで COM の強さを決める
+  newGame(diff, watch, rank);
   fillRuleNumbers();
   $('overlay').hidden = true;
   $('result').hidden = true;
+  $('rankNext').hidden = true; $('resultRank').hidden = true; $('again').textContent = 'もう一度';
   // COM対戦では下の欄も「COM」と表示し、回すボタンは隠す
-  $('whoYou').textContent = watch ? '青COM' : 'あなた';
-  $('whoCpu').textContent = watch ? '赤COM' : 'COM';
+  $('whoYou').textContent = watch ? '青COM' : (rank && rank.myName) || 'あなた';
+  $('whoCpu').textContent = watch ? '赤COM' : rank ? `${rank.name}（${rank.rankLabel}）` : 'COM';
   document.querySelector('.controls').style.display = watch ? 'none' : '';
   document.documentElement.classList.toggle('watch', !!watch);
   hudCache = '';
 }
+const WATCH_NEXT = 5; // 観戦：試合が終わってから次の対戦まで（秒）
 function endGame(winner) {
   G.over = true;
   G.winner = winner;
@@ -1553,11 +1614,43 @@ function endGame(winner) {
   if (G.watch) $('resultTitle').innerHTML = winner === 0 ? '<span class="c-blue">青</span>の勝ち' : '<span class="c-red">赤</span>の勝ち';
   else $('resultTitle').textContent = winner === 0 ? '勝ち' : '負け';
   $('resultTime').textContent = `${m}分${String(s).padStart(2, '0')}秒`;
+  if (G.watch) {
+    // 観戦：結果の画面は出さず、5秒たったら次の対戦を始める（メニューを開いている間は待つ）
+    const game = G;
+    game.overAt = performance.now();
+    const next = () => {
+      if (G !== game) return;
+      if (game.paused) { game.overAt += 500; setTimeout(next, 500); return; }
+      if (performance.now() - game.overAt >= WATCH_NEXT * 1000) startGame('hard', true); else setTimeout(next, 200);
+    };
+    setTimeout(next, 200);
+    return;
+  }
+  if (G.rank) {
+    // ランキング戦：結果と順位の画面は rank-ui.js が出す
+    const game = G, win = winner === 0, got = G.captured[0].length, lost = G.captured[1].length;
+    const margin = Math.max(0, Math.min(1, ((win ? got - lost : lost - got)) / 6));
+    const info = { rank: G.rank, win, margin, params: styleFromStats(), duration: G.realTime };
+    setTimeout(() => { if (G === game && G.over && typeof RankUI !== 'undefined') RankUI.onEnd(info); }, 900);
+    return;
+  }
   setTimeout(() => { if (G && G.over) $('result').hidden = false; }, 900);
 }
 document.querySelectorAll('[data-diff]').forEach(b =>
   b.addEventListener('click', () => startGame(b.dataset.diff)));
 $('watch').addEventListener('click', () => startGame('hard', true));
+// フリー：押すと強さ（かんたん・ふつう・むずかしい）を出す
+$('modeFree').addEventListener('click', () => {
+  const h = $('freeDiff').hidden = !$('freeDiff').hidden;
+  $('modeFree').setAttribute('aria-expanded', String(!h));
+});
+// 秒数（3・6・9）：選ぶとルール説明の秒数も変わる。覚えておく
+function showSec() {
+  document.querySelectorAll('[data-sec]').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.sec === SETTINGS.sec)));
+  fillRuleNumbers();
+}
+document.querySelectorAll('[data-sec]').forEach(b => b.addEventListener('click', () => { SETTINGS.sec = +b.dataset.sec; saveSettings(); showSec(); }));
+showSec();
 $('again').addEventListener('click', () => { $('result').hidden = true; $('overlay').hidden = false; });
 
 // ===== ループ =====

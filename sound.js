@@ -2,8 +2,9 @@
 // 音階は陰旋法（D E♭ G A B♭）。ゲーム側からは sfx('名前', 側) を呼ぶだけ
 // 設定（トップ画面で切り替える）：効果音・BGM・駒の上のキャラ。ブラウザに覚えておく
 const SETTINGS = (() => {
-  const d = { se: true, bgm: true, chara: false };
+  const d = { se: true, bgm: true, chara: false, sec: 6 }; // sec：1動作の秒数（3・6・9）
   try { Object.assign(d, JSON.parse(localStorage.getItem('toki-settings') || '{}')); } catch (e) {}
+  if (![3, 6, 9].includes(d.sec)) d.sec = 6;
   return d;
 })();
 function saveSettings() { try { localStorage.setItem('toki-settings', JSON.stringify(SETTINGS)); } catch (e) {} }

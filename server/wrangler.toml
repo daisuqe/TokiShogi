@@ -1,0 +1,15 @@
+name = "toki-rank"
+main = "src/index.js"
+compatibility_date = "2026-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "toki-rank"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"   # wrangler d1 create toki-rank の結果をここに書く
+
+[triggers]
+crons = ["0 18 * * *"]   # 毎日 03:00（日本時間）：COM どうしの対戦で、COM の順位を入れ替える
+
+[vars]
+# ゲームのページ（ここからだけ呼べる）。カンマ区切り
+ALLOW_ORIGINS = "https://daisuqe.github.io,http://localhost:8000,http://localhost:8123"
