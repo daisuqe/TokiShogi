@@ -1021,7 +1021,7 @@ function drawPiece(p, px, py, ang, scale, alpha = 1, glow = null, bright = false
   ctx.strokeStyle = edgeC;
   ctx.stroke();
   ctx.fillStyle = p.promoted ? CLR.ptext : bright ? '#ffffff' : CLR.text[p.side];
-  ctx.font = `700 ${Math.round(s * 0.52)}px ${CLR.pieceFont}`;
+  ctx.font = `700 ${Math.round(s * 0.58)}px ${CLR.pieceFont}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(label(p), 0, s * 0.07);

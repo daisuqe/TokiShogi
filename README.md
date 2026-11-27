@@ -30,14 +30,16 @@
 | `server/` | ランキングサーバー（Cloudflare Workers + D1）。`server/README.md` を見てください |
 | `sound.js` | 効果音（和風。音のファイルは使わず、ブラウザで作る） |
 | `image/` | 中継に映す駒の絵（駒ごとに idle・attack-1/2・defense-1/2・ko） |
-| `font-misaki.css` | カウントダウン（数字と START!）だけの美咲ゴシック |
+| `font-misaki.css` | 上の中継の「VS」などに使う美咲ゴシックの文字だけ |
+| `font-yodaka.css` | カウントダウン（数字と START!）のためのよだかのフォントの文字だけ |
 | `font.css` | ゲームで使う文字だけを切り出して埋め込んだ字体（どの環境でも、ネットがなくても、ファイルを直接開いても、同じ字形で出る） |
 | `fonts/` | ライセンスの表記（NOTICE） |
 | `icons/` | タブのアイコン（16・32px）と、iPhone のホーム画面用アイコン（180px） |
 
 ## 使っているフォント
 
-- [美咲フォント](https://littlelimit.net/misaki.htm)（美咲ゴシック）：題名の「刻」「将」のドット絵の字形と、カウントダウンの数字・START!（使う文字だけを切り出して埋め込み）
+- [美咲フォント](https://littlelimit.net/misaki.htm)（美咲ゴシック）：題名の「刻」「将」のドット絵の字形と、上の中継の「VS」などの文字（使う文字だけを切り出して埋め込み）
+- よだかのフォント：カウントダウンの数字と START!（使う文字だけを切り出して埋め込み。ライセンスと表記は、配布元の規約を確認してください）
 - [M PLUS 1 Code](https://fonts.google.com/specimen/M+PLUS+1+Code)（SIL Open Font License）：画面と駒の文字。使う文字だけを切り出して埋め込み（`fonts/NOTICE-M-PLUS-1-Code.txt`）
 
 Copyright (c) 2026 daisuqe. All rights reserved.

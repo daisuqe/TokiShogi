@@ -170,10 +170,10 @@ kbd { font-size: 11px; color: var(--g3); font-family: inherit; }
 }
 @media (max-width: 480px) { .count { font-size: 96px; } }
 .count.show { opacity: 1; }
-/* カウントダウンは美咲フォント（8ドット単位の大きさにして、ドットをくっきりと） */
-.count { font-family: "TokiMisaki", monospace; font-size: 128px; font-weight: 400; }
-.count.word { font-size: 64px; }  /* 全角6文字なので、半角のときより小さく */
-@media (max-width: 480px) { .count { font-size: 96px; } .count.word { font-size: 48px; } }
+/* カウントダウンは、よだかのフォント（font-yodaka.css） */
+.count { font-family: "TokiYodaka", "TokiFont", sans-serif; font-size: 128px; font-weight: 400; }
+.count.word { font-size: 96px; }
+@media (max-width: 480px) { .count { font-size: 96px; } .count.word { font-size: 64px; } }
 .overlay {
   position: fixed; inset: 0;
   background: rgba(1, 8, 5, 0.82);
