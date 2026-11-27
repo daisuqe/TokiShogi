@@ -388,8 +388,8 @@ const LIVE = (() => {
     if (!G) return;
     const ks = [G.pieces.find(p => p.side === 0 && p.type === 'OU'), G.pieces.find(p => p.side === 1 && p.type === 'OU')];
     ks.forEach((p, i) => {
+      if (!p) return;   // 王が取られたあとは、いない側は描かない
       const k = 92 * u / 148 * sizeOf(p);
-      if (!p) return;
       const bob = Math.sin(ts * 2 + i) * 1.5 * u;
       drawSprite(p, 'idle', i === 0 ? W * 0.27 : W * 0.73, H - 12 * u + bob, k, i === 0 ? 1 : -1, 0.6, COL[i]);
     });

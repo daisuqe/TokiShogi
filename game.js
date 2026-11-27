@@ -506,9 +506,11 @@ function update(realDt) {
   if (G.watch) {
     G.cpuT0 -= dt;
     if (G.cpuT0 <= 0) {
-      cpuThink(0, G.diff);
-      const d = DIFF[G.diff];
-      G.cpuT0 = d.think + Math.random() * d.jitter;
+      const dk = G.pair ? 'watch0' : G.diff;      // ランキングの2人の観戦では、青は青の強さ・うち筋で動く
+      cpuThink(0, dk);
+      const d = DIFF[dk];
+      const tempo = G.pair && G.style[0] && typeof G.style[0].tempo === 'number' ? 0.7 + 0.6 * G.style[0].tempo : 1;
+      G.cpuT0 = (d.think + Math.random() * d.jitter) / tempo;
     }
     if (G.over) return;
   }
@@ -1587,17 +1589,26 @@ function fillRuleNumbers() {
 fillRuleNumbers();
 
 // ===== 開始と終わり =====
-function startGame(diff, watch = false, rank = null) {
+function startGame(diff, watch = false, rank = null, pair = null) {
   SND.bgmStop();
   if (rank) { DIFF.rank = diffFor(rank.strength); diff = 'rank'; } // ランキング戦：相手の強さで COM の強さを決める
   newGame(diff, watch, rank);
+  if (pair) {
+    // 観戦：ランキングの2人（青・赤）。強さとうち筋は、それぞれの人のもの。ランキングには影響しない
+    G.pair = pair;
+    G.style = [pair[0].params || null, pair[1].params || null];
+    DIFF.watch0 = diffFor(RankCore.strengthOf(pair[0].rating));
+    DIFF.watch1 = diffFor(RankCore.strengthOf(pair[1].rating));
+    G.diff = 'watch1';
+  }
   fillRuleNumbers();
   $('overlay').hidden = true;
   $('result').hidden = true;
   $('rankNext').hidden = true; $('resultRank').hidden = true; $('again').textContent = 'もう一度';
   // COM対戦では下の欄も「COM」と表示し、回すボタンは隠す
-  $('whoYou').textContent = watch ? '青COM' : (rank && rank.myName) || 'あなた';
-  $('whoCpu').textContent = watch ? '赤COM' : rank ? `${rank.name}（${rank.rankLabel}）` : 'COM';
+  const who = q => `${q.name}（${q.rank}位）`;
+  $('whoYou').textContent = pair ? who(pair[0]) : watch ? '青COM' : (rank && rank.myName) || 'あなた';
+  $('whoCpu').textContent = pair ? who(pair[1]) : watch ? '赤COM' : rank ? `${rank.name}（${rank.rankLabel}）` : 'COM';
   document.querySelector('.controls').style.display = watch ? 'none' : '';
   document.documentElement.classList.toggle('watch', !!watch);
   hudCache = '';
@@ -1621,7 +1632,7 @@ function endGame(winner) {
     const next = () => {
       if (G !== game) return;
       if (game.paused) { game.overAt += 500; setTimeout(next, 500); return; }
-      if (performance.now() - game.overAt >= WATCH_NEXT * 1000) startGame('hard', true); else setTimeout(next, 200);
+      if (performance.now() - game.overAt >= WATCH_NEXT * 1000) startWatch(); else setTimeout(next, 200);
     };
     setTimeout(next, 200);
     return;
@@ -1638,12 +1649,26 @@ function endGame(winner) {
 }
 document.querySelectorAll('[data-diff]').forEach(b =>
   b.addEventListener('click', () => startGame(b.dataset.diff)));
-$('watch').addEventListener('click', () => startGame('hard', true));
-// フリー：押すと強さ（かんたん・ふつう・むずかしい）を出す
-$('modeFree').addEventListener('click', () => {
-  const h = $('freeDiff').hidden = !$('freeDiff').hidden;
-  $('modeFree').setAttribute('aria-expanded', String(!h));
-});
+// 観戦：ランキング50位より上（1〜49位）の2人をランダムに選んで戦わせる。結果はランキングに反映しない
+async function startWatch() {
+  let pair = null;
+  try {
+    const rows = (await RankClient.ranking()).filter(r => r.rank < 50 && typeof r.rating === 'number');
+    if (rows.length >= 2) {
+      const a = rows[Math.floor(Math.random() * rows.length)];
+      let b; do { b = rows[Math.floor(Math.random() * rows.length)]; } while (b === a);
+      pair = Math.random() < 0.5 ? [a, b] : [b, a];
+    }
+  } catch (e) { /* つながらなければ、ふつうのCOM対戦 */ }
+  startGame('hard', true, null, pair);
+}
+$('watch').addEventListener('click', startWatch);
+// フリー：押すと、強さ（かんたん・ふつう・むずかしい）を選ぶ画面へ。「もどる」で戻る
+const closeFree = () => { $('freeView').hidden = true; };
+$('modeFree').addEventListener('click', () => { $('freeView').hidden = false; $('freeView').querySelector('.primary').focus(); });
+$('freeBack').addEventListener('click', closeFree);
+$('freeView').addEventListener('click', e => { if (e.target === $('freeView')) closeFree(); });
+document.querySelectorAll('#freeView [data-diff]').forEach(b => b.addEventListener('click', closeFree));
 // 秒数（3・6・9）：選ぶとルール説明の秒数も変わる。覚えておく
 function showSec() {
   document.querySelectorAll('[data-sec]').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.sec === SETTINGS.sec)));

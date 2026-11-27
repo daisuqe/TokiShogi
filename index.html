@@ -24,7 +24,7 @@
 <meta name="apple-mobile-web-app-title" content="刻将棋">
 <link rel="stylesheet" href="font.css?v=20261125b">
 <link rel="stylesheet" href="font-misaki.css?v=20261126a">
-<link rel="stylesheet" href="style.css?v=20261127e">
+<link rel="stylesheet" href="style.css?v=20261127f">
 </head>
 <body>
 <main>
@@ -71,13 +71,8 @@
     <!-- モード：ランキング（そのまま始まる）／フリー（強さを選ぶ）／観戦（COM同士） -->
     <div class="modes">
       <button id="modeRank" class="primary" type="button">ランクマッチ</button>
-      <button id="modeFree" type="button" aria-expanded="false">フリー</button>
+      <button id="modeFree" type="button" aria-haspopup="dialog">フリー</button>
       <button id="watch" type="button">観戦</button>
-    </div>
-    <div class="free-diff" id="freeDiff" hidden>
-      <button data-diff="easy" type="button">かんたん</button>
-      <button data-diff="normal" class="primary" type="button">ふつう</button>
-      <button data-diff="hard" type="button">むずかしい</button>
     </div>
     <!-- 秒数：移動・回転・休みなどの1回の長さ。下のルール説明の秒数も変わる -->
     <div class="secs" role="group" aria-label="秒数">
@@ -173,6 +168,17 @@ daisuqe が保有します。著作権者の事前の書面による許可なく
 </div>
 
 <!-- ランクマッチ：名前・順位・MATCH START・ランキングを見る -->
+<!-- フリー：COM の強さを選ぶ画面（ランクマッチの画面と同じ作り）。いちばん下に「もどる」 -->
+<div id="freeView" class="overlay apps-dlg" role="dialog" aria-modal="true" aria-labelledby="freeViewTitle" hidden>
+  <div class="panel apps-panel rank-view-panel">
+    <h3 id="freeViewTitle" class="menu-title">フリー</h3>
+    <button data-diff="easy" type="button">かんたん</button>
+    <button data-diff="normal" class="primary" type="button">ふつう</button>
+    <button data-diff="hard" type="button">むずかしい</button>
+    <button id="freeBack" type="button">もどる</button>
+  </div>
+</div>
+
 <div id="rankView" class="overlay apps-dlg" role="dialog" aria-modal="true" aria-labelledby="rankViewTitle" hidden>
   <div class="panel apps-panel rank-view-panel">
     <h3 id="rankViewTitle" class="menu-title">ランクマッチ</h3>
@@ -222,8 +228,8 @@ daisuqe が保有します。著作権者の事前の書面による許可なく
 <script src="sound.js?v=20261127a"></script>
 <script src="rank-core.js?v=20261127a"></script>
 <script src="rank-client.js?v=20261127b"></script>
-<script src="game.js?v=20261127b"></script>
-<script src="live.js?v=20261126s"></script>
+<script src="game.js?v=20261127d"></script>
+<script src="live.js?v=20261127a"></script>
 <script src="rank-ui.js?v=20261127d"></script>
 <script>
 /* ビルド番号：style.css の ?v= の値（更新のたびに変える版数）をそのまま出す */

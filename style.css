@@ -303,10 +303,8 @@ button.quit-btn:hover:not(:disabled) { opacity: 1; color: var(--g5); border: non
 .quit-btn:focus-visible { outline: 2px solid #fff; outline-offset: -4px; opacity: 1; }
 
 /* スタート画面：モード（ランキング・フリー・観戦）、フリーの強さ、秒数 */
-.modes, .free-diff, .secs { display: flex; gap: 6px; justify-content: center; align-items: stretch; margin-bottom: 8px; }
+.modes, .secs { display: flex; gap: 6px; justify-content: center; align-items: stretch; margin-bottom: 8px; }
 .modes button { flex: 1 1 0; min-width: 0; padding: 14px 2px; font-size: 16px; letter-spacing: 0; white-space: nowrap; }
-.free-diff[hidden] { display: none; }
-.free-diff button { flex: 1 1 0; min-width: 0; padding: 10px 4px; }
 .secs { margin-bottom: 4px; }
 .secs button { flex: 1 1 0; min-width: 0; padding: 8px 0; }   /* 上の3つのモードのボタンと同じ幅 */
 .secs button[aria-pressed="true"] { background: rgba(63, 220, 120, 0.15); border-color: var(--g4); color: var(--g5); box-shadow: 0 0 10px rgba(63, 220, 120, 0.35); }
