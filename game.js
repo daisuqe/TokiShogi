@@ -749,11 +749,24 @@ function reachSet(p, dir) {
   }
   return set;
 }
-// 回す意味があるか：回したあとに、今は届かないマスへ届くようになる回転だけ意味がある
-// （壁を向く、飛車や王のように形が同じ、いまより狭くなるだけ、は意味がない）
+// 回す意味があるか。回したあとに新しく届くようになるマスが、次のどれかを満たすときだけ意味がある：
+//  ・敵の駒がいる（取りに行ける）  ・敵の王に近づける  ・組み合いの助太刀に入れるようになる
+// 壁を向く、飛車や王のように形が同じ、狭まるだけ、横を向いても何にもならない、は意味がない
 function rotMeaningful(p, d) {
-  const now = reachSet(p, p.dir), nxt = reachSet(p, (p.dir + d + 4) % 4);
-  for (const k of nxt) if (!now.has(k)) return true;
+  const nd = (p.dir + d + 4) % 4;
+  const now = reachSet(p, p.dir), nxt = reachSet(p, nd);
+  // 助太刀：いまは届かない組み合いのマスに、回すと届く
+  if (G.grapples.some(g => (g.atk.side === p.side || g.def.side === p.side) &&
+      canReachFrom(p, p.x, p.y, nd, g.x, g.y) && !canReachFrom(p, p.x, p.y, p.dir, g.x, g.y))) return true;
+  const ek = G.pieces.find(q => q.side !== p.side && q.type === 'OU');
+  const dist = (x, y) => ek ? Math.max(Math.abs(x - ek.x), Math.abs(y - ek.y)) : 99;
+  const d0 = dist(p.x, p.y);
+  for (const k of nxt) {
+    if (now.has(k)) continue;
+    const x = Math.floor(k / 16), y = k % 16;
+    if (G.pieces.some(q => q.side !== p.side && q.state !== 'moving' && q.x === x && q.y === y)) return true;
+    if (dist(x, y) < d0) return true;
+  }
   return false;
 }
 
