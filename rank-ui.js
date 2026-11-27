@@ -108,7 +108,32 @@ const RankUI = (() => {
     }
   }
 
-  $('modeRank').addEventListener('click', start);
+  // ランクマッチの画面：名前・順位を見せて、MATCH START かランキングを見るかを選ぶ
+  async function openView() {
+    const dlg = $('rankView');
+    $('rvErr').hidden = true;
+    $('rvName').textContent = '-'; $('rvRank').textContent = '-'; $('rvNote').textContent = '';
+    dlg.hidden = false;
+    $('rvStart').focus();
+    try {
+      const me = await RankClient.me();
+      if (me.registered) {
+        $('rvName').textContent = me.name;
+        $('rvRank').textContent = me.inRanking === false ? '圏外' : place(me.rank);
+      } else {
+        $('rvName').textContent = '未登録';
+        $('rvNote').textContent = '1戦目のあとに、名前を登録できます';
+      }
+    } catch (e) {
+      $('rvErr').textContent = 'ランキングにつながりません'; $('rvErr').hidden = false;
+    }
+  }
+  const closeView = () => { $('rankView').hidden = true; };
+  $('modeRank').addEventListener('click', openView);
+  $('rvStart').addEventListener('click', () => { closeView(); start(); });
+  $('rvTable').addEventListener('click', showTable);
+  $('rvBack').addEventListener('click', closeView);
+  $('rankView').addEventListener('click', e => { if (e.target === $('rankView')) closeView(); });
   $('rankNext').addEventListener('click', () => { $('result').hidden = true; start(); });
   $('showTable').addEventListener('click', showTable);
   $('tableClose').addEventListener('click', () => { $('tableDlg').hidden = true; });

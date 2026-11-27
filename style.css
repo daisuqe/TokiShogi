@@ -385,3 +385,12 @@ button.quit-btn:hover:not(:disabled) { opacity: 1; color: var(--g5); border: non
 .rank-row.me { background: rgba(89, 168, 255, 0.18); border-left: 3px solid var(--you); }
 .entry-panel { width: min(440px, 100%); }
 .entry-panel .apps-msg { font-size: 15px; }
+
+/* ランクマッチの画面：名前・順位・ボタンを縦に並べる */
+.rank-view-panel { display: flex; flex-direction: column; gap: 10px; }
+.rank-view-panel button { width: 100%; padding: 12px 8px; font-size: 18px; }
+.rank-me { margin: 0 0 4px; display: grid; gap: 6px; }
+.rank-me > div { display: flex; justify-content: space-between; align-items: baseline; padding: 6px 10px; border: 1px solid var(--line); background: rgba(4, 20, 11, 0.75); }
+.rank-me dt { color: var(--g3); font-size: 14px; }
+.rank-me dd { margin: 0; font-size: 24px; letter-spacing: 0.12em; color: var(--g5); }
+.rv-note { margin: 0 0 4px; min-height: 1.4em; text-align: center; font-size: 13px; color: var(--g3); }
