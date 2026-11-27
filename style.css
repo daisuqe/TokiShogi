@@ -304,12 +304,11 @@ button.quit-btn:hover:not(:disabled) { opacity: 1; color: var(--g5); border: non
 
 /* スタート画面：モード（ランキング・フリー・観戦）、フリーの強さ、秒数 */
 .modes, .free-diff, .secs { display: flex; gap: 6px; justify-content: center; align-items: stretch; margin-bottom: 8px; }
-.modes button { flex: 1 1 0; min-width: 0; padding: 14px 4px; font-size: 18px; }
+.modes button { flex: 1 1 0; min-width: 0; padding: 14px 2px; font-size: 16px; letter-spacing: 0; white-space: nowrap; }
 .free-diff[hidden] { display: none; }
 .free-diff button { flex: 1 1 0; min-width: 0; padding: 10px 4px; }
-.secs { align-items: center; margin-bottom: 4px; }
-.secs-label { color: var(--g3); font-size: 14px; margin-right: 4px; }
-.secs button { width: 56px; padding: 6px 0; }
+.secs { margin-bottom: 4px; }
+.secs button { flex: 1 1 0; min-width: 0; padding: 8px 0; }   /* 上の3つのモードのボタンと同じ幅 */
 .secs button[aria-pressed="true"] { background: rgba(63, 220, 120, 0.15); border-color: var(--g4); color: var(--g5); box-shadow: 0 0 10px rgba(63, 220, 120, 0.35); }
 /* 狭いスマホでも、難しさの5つの正方形が、4文字の「やさしい」を折り返さずに並ぶように余白を詰める */
 @media (max-width: 420px) {
@@ -362,8 +361,6 @@ button.quit-btn:hover:not(:disabled) { opacity: 1; color: var(--g5); border: non
 
 /* ランキング：メッセージ・順位表・登録・結果の順位 */
 .rank-msg { margin: 6px 0 0; text-align: center; color: var(--cpu); font-size: 14px; }
-.table-row { display: flex; justify-content: center; margin: 6px 0 10px; }
-.table-row button { padding: 6px 18px; font-size: 14px; }
 .result-rank { white-space: pre-line; font-size: 18px; color: var(--g5); line-height: 1.6; }
 .entry-panel { text-align: center; }
 .entry-name { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 0 0 12px; color: var(--g3); }
@@ -385,3 +382,12 @@ button.quit-btn:hover:not(:disabled) { opacity: 1; color: var(--g5); border: non
 .rank-row.me { background: rgba(89, 168, 255, 0.18); border-left: 3px solid var(--you); }
 .entry-panel { width: min(440px, 100%); }
 .entry-panel .apps-msg { font-size: 15px; }
+
+/* ランクマッチの画面：名前・順位・ボタンを縦に並べる */
+.rank-view-panel { display: flex; flex-direction: column; gap: 10px; }
+.rank-view-panel button { width: 100%; padding: 12px 8px; font-size: 18px; }
+.rank-me { margin: 0 0 4px; display: grid; gap: 6px; }
+.rank-me > div { display: flex; justify-content: space-between; align-items: baseline; padding: 6px 10px; border: 1px solid var(--line); background: rgba(4, 20, 11, 0.75); }
+.rank-me dt { color: var(--g3); font-size: 14px; }
+.rank-me dd { margin: 0; font-size: 24px; letter-spacing: 0.12em; color: var(--g5); }
+.rv-note { margin: 0 0 4px; min-height: 1.4em; text-align: center; font-size: 13px; color: var(--g3); }

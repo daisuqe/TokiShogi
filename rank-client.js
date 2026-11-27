@@ -7,7 +7,7 @@
 //   register(name, opp, result, margin) 名前を登録する { ok, error, registered, rank }
 //   submit(nonce, result, params)      結果を送る { oldRank, newRank, rating, delta }
 // サーバーを用意したら、ここに URL を入れる（例：'https://toki-rank.<あなたのアカウント>.workers.dev'）。空なら端末の中だけ。
-const RANK_API = '';
+const RANK_API = 'https://toki-rank.haradadaisuke.workers.dev';
 
 const RankClient = (() => {
   const RC = RankCore;

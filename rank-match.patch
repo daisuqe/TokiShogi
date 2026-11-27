@@ -1,0 +1,109 @@
+diff --git a/index.html b/index.html
+index 97b3588..612573e 100644
+--- a/index.html
++++ b/index.html
+@@ -24,7 +24,7 @@
+ <meta name="apple-mobile-web-app-title" content="刻将棋">
+ <link rel="stylesheet" href="font.css?v=20261125b">
+ <link rel="stylesheet" href="font-misaki.css?v=20261126a">
+-<link rel="stylesheet" href="style.css?v=20261127b">
++<link rel="stylesheet" href="style.css?v=20261127c">
+ </head>
+ <body>
+ <main>
+@@ -70,7 +70,7 @@
+     <p class="sub">リアルタイム将棋</p>
+     <!-- モード：ランキング（そのまま始まる）／フリー（強さを選ぶ）／観戦（COM同士） -->
+     <div class="modes">
+-      <button id="modeRank" class="primary" type="button">ランキング</button>
++      <button id="modeRank" class="primary" type="button">ランクマッチ</button>
+       <button id="modeFree" type="button" aria-expanded="false">フリー</button>
+       <button id="watch" type="button">観戦</button>
+     </div>
+@@ -174,6 +174,22 @@ daisuqe が保有します。著作権者の事前の書面による許可なく
+   </div>
+ </div>
+ 
++<!-- ランクマッチ：名前・順位・MATCH START・ランキングを見る -->
++<div id="rankView" class="overlay apps-dlg" role="dialog" aria-modal="true" aria-labelledby="rankViewTitle" hidden>
++  <div class="panel apps-panel rank-view-panel">
++    <h3 id="rankViewTitle" class="menu-title">ランクマッチ</h3>
++    <dl class="rank-me">
++      <div><dt>名前</dt><dd id="rvName">-</dd></div>
++      <div><dt>順位</dt><dd id="rvRank">-</dd></div>
++    </dl>
++    <p id="rvNote" class="rv-note"></p>
++    <p id="rvErr" class="rank-msg" hidden></p>
++    <button id="rvStart" class="primary" type="button">MATCH START</button>
++    <button id="rvTable" type="button">ランキングを見る</button>
++    <button id="rvBack" type="button">もどる</button>
++  </div>
++</div>
++
+ <!-- ランキング：1戦目のあとの登録 -->
+ <div id="entryDlg" class="overlay apps-dlg" role="dialog" aria-modal="true" aria-labelledby="entryMsg" hidden>
+   <div class="panel apps-panel entry-panel">
+@@ -210,7 +226,7 @@ daisuqe が保有します。著作権者の事前の書面による許可なく
+ <script src="rank-client.js?v=20261127a"></script>
+ <script src="game.js?v=20261127a"></script>
+ <script src="live.js?v=20261126s"></script>
+-<script src="rank-ui.js?v=20261127a"></script>
++<script src="rank-ui.js?v=20261127b"></script>
+ <script>
+ /* ビルド番号：style.css の ?v= の値（更新のたびに変える版数）をそのまま出す */
+ (function(){var l=document.querySelector('link[href^="style.css"]'),m=l&&/[?&]v=([^&]+)/.exec(l.getAttribute("href")),e=document.getElementById("build");if(e&&m)e.textContent="build "+m[1];})();
+diff --git a/rank-ui.js b/rank-ui.js
+index 701b12e..785194b 100644
+--- a/rank-ui.js
++++ b/rank-ui.js
+@@ -108,7 +108,32 @@ const RankUI = (() => {
+     }
+   }
+ 
+-  $('modeRank').addEventListener('click', start);
++  // ランクマッチの画面：名前・順位を見せて、MATCH START かランキングを見るかを選ぶ
++  async function openView() {
++    const dlg = $('rankView');
++    $('rvErr').hidden = true;
++    $('rvName').textContent = '-'; $('rvRank').textContent = '-'; $('rvNote').textContent = '';
++    dlg.hidden = false;
++    $('rvStart').focus();
++    try {
++      const me = await RankClient.me();
++      if (me.registered) {
++        $('rvName').textContent = me.name;
++        $('rvRank').textContent = me.inRanking === false ? '圏外' : place(me.rank);
++      } else {
++        $('rvName').textContent = '未登録';
++        $('rvNote').textContent = '1戦目のあとに、名前を登録できます';
++      }
++    } catch (e) {
++      $('rvErr').textContent = 'ランキングにつながりません'; $('rvErr').hidden = false;
++    }
++  }
++  const closeView = () => { $('rankView').hidden = true; };
++  $('modeRank').addEventListener('click', openView);
++  $('rvStart').addEventListener('click', () => { closeView(); start(); });
++  $('rvTable').addEventListener('click', showTable);
++  $('rvBack').addEventListener('click', closeView);
++  $('rankView').addEventListener('click', e => { if (e.target === $('rankView')) closeView(); });
+   $('rankNext').addEventListener('click', () => { $('result').hidden = true; start(); });
+   $('showTable').addEventListener('click', showTable);
+   $('tableClose').addEventListener('click', () => { $('tableDlg').hidden = true; });
+diff --git a/style.css b/style.css
+index f87d97f..ef74e38 100644
+--- a/style.css
++++ b/style.css
+@@ -385,3 +385,12 @@ button.quit-btn:hover:not(:disabled) { opacity: 1; color: var(--g5); border: non
+ .rank-row.me { background: rgba(89, 168, 255, 0.18); border-left: 3px solid var(--you); }
+ .entry-panel { width: min(440px, 100%); }
+ .entry-panel .apps-msg { font-size: 15px; }
++
++/* ランクマッチの画面：名前・順位・ボタンを縦に並べる */
++.rank-view-panel { display: flex; flex-direction: column; gap: 10px; }
++.rank-view-panel button { width: 100%; padding: 12px 8px; font-size: 18px; }
++.rank-me { margin: 0 0 4px; display: grid; gap: 6px; }
++.rank-me > div { display: flex; justify-content: space-between; align-items: baseline; padding: 6px 10px; border: 1px solid var(--line); background: rgba(4, 20, 11, 0.75); }
++.rank-me dt { color: var(--g3); font-size: 14px; }
++.rank-me dd { margin: 0; font-size: 24px; letter-spacing: 0.12em; color: var(--g5); }
++.rv-note { margin: 0 0 4px; min-height: 1.4em; text-align: center; font-size: 13px; color: var(--g3); }
