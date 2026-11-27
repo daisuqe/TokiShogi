@@ -1,0 +1,12 @@
+{
+  "name": "toki-rank",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "schema": "wrangler d1 execute toki-rank --file=schema.sql"
+  },
+  "devDependencies": {
+    "wrangler": "^4"
+  }
+}

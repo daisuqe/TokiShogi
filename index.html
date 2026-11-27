@@ -24,7 +24,7 @@
 <meta name="apple-mobile-web-app-title" content="刻将棋">
 <link rel="stylesheet" href="font.css?v=20261125b">
 <link rel="stylesheet" href="font-misaki.css?v=20261126a">
-<link rel="stylesheet" href="style.css?v=20261126r">
+<link rel="stylesheet" href="style.css?v=20261127b">
 </head>
 <body>
 <main>
@@ -68,13 +68,26 @@
       <canvas id="figR" class="fig figR" aria-hidden="true"></canvas>
     </div>
     <p class="sub">リアルタイム将棋</p>
-    <div class="diff">
-      <button data-diff="easy2">おそい<br>やさしい</button>
-      <button data-diff="easy">やさしい</button>
-      <button data-diff="normal" class="primary">ふつう</button>
-      <button data-diff="hard">つよい</button>
-      <button id="watch">COM対戦</button>
+    <!-- モード：ランキング（そのまま始まる）／フリー（強さを選ぶ）／観戦（COM同士） -->
+    <div class="modes">
+      <button id="modeRank" class="primary" type="button">ランキング</button>
+      <button id="modeFree" type="button" aria-expanded="false">フリー</button>
+      <button id="watch" type="button">観戦</button>
     </div>
+    <div class="free-diff" id="freeDiff" hidden>
+      <button data-diff="easy" type="button">かんたん</button>
+      <button data-diff="normal" class="primary" type="button">ふつう</button>
+      <button data-diff="hard" type="button">むずかしい</button>
+    </div>
+    <!-- 秒数：移動・回転・休みなどの1回の長さ。下のルール説明の秒数も変わる -->
+    <div class="secs" role="group" aria-label="秒数">
+      <span class="secs-label">秒数</span>
+      <button data-sec="3" type="button">3</button>
+      <button data-sec="6" type="button">6</button>
+      <button data-sec="9" type="button">9</button>
+    </div>
+    <p id="rankMsg" class="rank-msg" hidden></p>
+    <div class="table-row"><button id="showTable" type="button">順位表</button></div>
     <!-- 設定：効果音・BGM・駒の上のキャラ（ブラウザに覚えておく） -->
     <div class="settings">
       <button id="setSe" type="button"></button>
@@ -161,17 +174,43 @@ daisuqe が保有します。著作権者の事前の書面による許可なく
   </div>
 </div>
 
+<!-- ランキング：1戦目のあとの登録 -->
+<div id="entryDlg" class="overlay apps-dlg" role="dialog" aria-modal="true" aria-labelledby="entryMsg" hidden>
+  <div class="panel apps-panel entry-panel">
+    <p id="entryMsg" class="apps-msg"></p>
+    <label id="entryLabel" class="entry-name">Name <input id="entryName" type="text" maxlength="4" pattern="[A-Z]{4}" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Name, four uppercase letters"></label>
+    <p id="entryErr" class="entry-err" hidden></p>
+    <div class="apps-btns">
+      <button id="entryYes" type="button">Entry</button>
+      <button id="entryNo" type="button">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ランキング：順位表 -->
+<div id="tableDlg" class="overlay apps-dlg" role="dialog" aria-modal="true" aria-labelledby="tableTitle" hidden>
+  <div class="panel table-panel">
+    <h3 id="tableTitle" class="menu-title">RANKING</h3>
+    <ol id="tableList" class="rank-list"></ol>
+    <div class="diff"><button id="tableClose" class="primary" type="button">Close</button></div>
+  </div>
+</div>
+
 <div id="result" class="overlay" hidden>
   <div class="panel">
     <h2 id="resultTitle"></h2>
     <p id="resultTime" class="sub"></p>
-    <div class="diff"><button id="again" class="primary">もう一度</button></div>
+    <p id="resultRank" class="sub result-rank" hidden></p>
+    <div class="diff"><button id="rankNext" class="primary" type="button" hidden>次の対戦</button><button id="again" class="primary">もう一度</button></div>
   </div>
 </div>
 
-<script src="sound.js?v=20261126g"></script>
-<script src="game.js?v=20261126m"></script>
+<script src="sound.js?v=20261127a"></script>
+<script src="rank-core.js?v=20261127a"></script>
+<script src="rank-client.js?v=20261127a"></script>
+<script src="game.js?v=20261127a"></script>
 <script src="live.js?v=20261126s"></script>
+<script src="rank-ui.js?v=20261127a"></script>
 <script>
 /* ビルド番号：style.css の ?v= の値（更新のたびに変える版数）をそのまま出す */
 (function(){var l=document.querySelector('link[href^="style.css"]'),m=l&&/[?&]v=([^&]+)/.exec(l.getAttribute("href")),e=document.getElementById("build");if(e&&m)e.textContent="build "+m[1];})();
