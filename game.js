@@ -466,7 +466,7 @@ function update(realDt) {
   }
   if (G.over) return;
   // 王の守り：1秒ごとに、自分の王のまわりに助太刀できる駒がいるかを記録する（ランキング用）
-  if (!G.watch && G.time >= G.stats.kdNext) {
+  if (!G.watch && !G.sim && G.time >= G.stats.kdNext) {   // 先読みの試し打ち（G.sim）には記録がない
     G.stats.kdNext = G.time + 1;
     const ku = G.pieces.find(p => p.side === 0 && p.type === 'OU' && p.state === 'idle');
     if (ku) { G.stats.kdN++; if (supporters(0, ku.x, ku.y, ku).length >= 1) G.stats.kdS++; }
