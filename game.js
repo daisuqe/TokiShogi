@@ -1505,8 +1505,10 @@ function updateHud() {
     else hint = `行き先を押すか、回すボタンで向きを変える（${Math.round(CFG.ROTATE_TIME / G.speed)}秒）`;
   }
   const cd = G.countdown > 0 ? String(Math.ceil(G.countdown)) : G.startFlash > 0 ? 'START!' : '';
-  if (cd !== $('count').textContent) {
-    $('count').textContent = cd;
+  if (cd !== $('count').dataset.v) {
+    $('count').dataset.v = cd;
+    // 表示は全角（数字は ０〜９、START! は ＳＴＡＲＴ！）。美咲フォントの全角の字を使う
+    $('count').textContent = cd.replace(/[0-9A-Z!]/g, c => String.fromCharCode(c === '!' ? 0xFF01 : c.charCodeAt(0) + 0xFEE0));
     $('count').classList.toggle('show', cd !== '');
     $('count').classList.toggle('word', cd === 'START!');
     if (cd === 'START!') { sfx('start'); if (!G.sim) SND.bgmStart(); } else if (cd) sfx('count');

@@ -172,8 +172,8 @@ kbd { font-size: 11px; color: var(--g3); font-family: inherit; }
 .count.show { opacity: 1; }
 /* カウントダウンは美咲フォント（8ドット単位の大きさにして、ドットをくっきりと） */
 .count { font-family: "TokiMisaki", monospace; font-size: 128px; font-weight: 400; }
-.count.word { font-size: 112px; }
-@media (max-width: 480px) { .count { font-size: 96px; } .count.word { font-size: 80px; } }
+.count.word { font-size: 64px; }  /* 全角6文字なので、半角のときより小さく */
+@media (max-width: 480px) { .count { font-size: 96px; } .count.word { font-size: 48px; } }
 .overlay {
   position: fixed; inset: 0;
   background: rgba(1, 8, 5, 0.82);
@@ -390,3 +390,6 @@ button.quit-btn:hover:not(:disabled) { opacity: 1; color: var(--g5); border: non
 .rank-me dt { color: var(--g3); font-size: 14px; }
 .rank-me dd { margin: 0; font-size: 24px; letter-spacing: 0.12em; color: var(--g5); }
 .rv-note { margin: 0 0 4px; min-height: 1.4em; text-align: center; font-size: 13px; color: var(--g3); }
+
+/* 「SETTING」：設定の3つのボタンの上の見出し（小さく、薄く） */
+.settings-title { margin: 12px 0 4px; text-align: center; font-size: 12px; letter-spacing: 0.3em; color: var(--g3); }
