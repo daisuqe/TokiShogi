@@ -378,6 +378,7 @@ button.quit-btn:hover:not(:disabled) { opacity: 1; color: var(--g5); border: non
 .rank-row .nm { flex: 1; letter-spacing: 0.12em; }
 .rank-row .rt { color: var(--g3); }
 .rank-row.com .nm { color: var(--g4); }
+.rank-row .com-tag { margin-left: 0.6em; font-size: 0.65em; letter-spacing: 0.08em; opacity: 0.5; }
 .rank-row:not(.com) .nm { color: var(--g5); }
 .rank-row.me { background: rgba(89, 168, 255, 0.18); border-left: 3px solid var(--you); }
 .entry-panel { width: min(440px, 100%); }

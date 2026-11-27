@@ -97,6 +97,7 @@ const RankUI = (() => {
         li.className = 'rank-row' + (me.registered && me.name === r.name ? ' me' : '') + (r.isCom ? ' com' : '');
         const rk = document.createElement('span'); rk.className = 'rk'; rk.textContent = r.rank;
         const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = r.name + (r.isCom ? '' : ' ★');
+        if (r.isCom) { const tag = document.createElement('small'); tag.className = 'com-tag'; tag.textContent = 'COM'; nm.append(tag); }   // COM は小さく薄く
         const rt = document.createElement('span'); rt.className = 'rt'; rt.textContent = r.rating;
         li.append(rk, nm, rt);
         list.append(li);
