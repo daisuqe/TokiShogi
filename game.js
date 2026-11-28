@@ -1791,7 +1791,7 @@ function startGame(diff, watch = false, rank = null, pair = null) {
   document.documentElement.classList.toggle('watch', !!watch);
   hudCache = '';
 }
-const WATCH_NEXT = 5; // 観戦：試合が終わってから次の対戦まで（秒）
+const WATCH_NEXT = 10; // 観戦：試合が終わってから次の対戦まで（秒）
 function endGame(winner) {
   G.over = true;
   G.winner = winner;
@@ -1827,7 +1827,7 @@ function endGame(winner) {
       wb.className = 'win-banner ' + (winner === 0 ? 'blue' : 'red');
     }
     wb.hidden = false;
-    // 観戦：結果の画面は出さず、5秒たったら次の対戦を始める（メニューを開いている間は待つ）
+    // 観戦：結果の画面は出さず、WATCH_NEXT 秒（10秒）たったら次の対戦を始める（メニューを開いている間は待つ）
     const game = G;
     game.overAt = performance.now();
     const next = () => {
