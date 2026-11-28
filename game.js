@@ -1908,7 +1908,7 @@ document.querySelectorAll('#freeView [data-diff]').forEach(b => b.addEventListen
 // 設定の4つめのボタン：押すと、右クリックメニューのような小さなメニューで 3秒・6秒・9秒 を選ぶ
 function showSec() {
   document.querySelectorAll('[data-sec]').forEach(b => b.setAttribute('aria-checked', String(+b.dataset.sec === SETTINGS.sec)));
-  $('setSec').textContent = `${SETTINGS.sec}秒`;
+  $('setSec').textContent = `${SETTINGS.sec}秒/手`;
   document.querySelectorAll('[data-msec]').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.msec === SETTINGS.sec)));
   fillRuleNumbers();
 }
