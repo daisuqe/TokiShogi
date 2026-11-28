@@ -17,7 +17,9 @@ const CFG = {
   SUP: 5,                      // 助太刀の▲1発のダメージ（味方の回復はしない）。助太刀は何体でも入れる
   HUNT: 1.2,
   MOB: 0.5,                    // COM：飛車・角の動ける先1マスぶんの点数（6マスまで）                   // COM：敵の王への近づき1マスぶんの点数
-  SHIELD: 22,                  // COM：王の守り（助太刀）1体ぶんの点数（2体まで）
+  SHIELD: 30,                  // COM：王の守り（助太刀）1体ぶんの点数（2体まで）。2026-11-29 に 22 から上げた
+  KING_SAFE_ATTACK: true,      // COM：反撃されないとわかっていれば、王でもためらわずに乗る
+  KDANGER: 7,                  // COM：自分の王の2マス以内にいる敵の駒1枚ぶんの減点（王に近づかれるのを嫌う）
   SHOT_TIME: 0.35,             // ▲が飛んで当たるまで（見た目だけ）
 };
 
@@ -586,6 +588,15 @@ function updateGrapples(dt) {
 //  盤の「いまの形」を、危ない駒・狙える駒・組み合いの形勢で点数にして、
 //  次の1手（動かす・回す・何もしない）を、点数がいちばん上がるものから選ぶ。
 //  1手は3秒に1回しか出せないので、点数が上がらないときは手を出さずに待つ。
+// side の駒が、(x,y) のマスの助太刀に、1手動いて入ってこられるか（exclude はそのマスの駒）
+function canReinforce(side, x, y, exclude) {
+  for (const q of G.pieces) {
+    if (q.side !== side || q === exclude || q.state !== 'idle') continue;
+    if (canReachFrom(q, q.x, q.y, q.dir, x, y)) return true;   // もう隣で届く（助太刀になる）
+    for (const t of legalTargets(q)) if (!t.cap && canReachFrom(q, t.x, t.y, q.dir, x, y)) return true;
+  }
+  return false;
+}
 // 組み合いの見積もり：乗った駒（攻め）と乗られた駒（守り）のどちらが先に倒れるか（拍の数）。
 // 動いた直後の一撃（FIRST）は、乗る瞬間と、動いて助太刀に入った直後の1発だけ
 const supBurst = list => list.reduce((s, q) => s + (isFresh(q) ? CFG.FIRST - CFG.SUP : 0), 0);
@@ -678,6 +689,13 @@ function cpuThink(S = 1, dk = G.diff, sync = false) {
     // 王のまわりの守り：助太刀が2体いれば、乗られても返り討ちにできる。ふだんから形を作っておく
     let shield = 0;
     for (const p of mine) if (p.type === 'OU' && p.state === 'idle') shield += CFG.SHIELD * sm('kingDef') * Math.min(2, supporters(S, p.x, p.y, p).length);
+    // 王に敵が近づいている：2マス以内の敵の駒（動いている駒は行き先で数える）ごとに減点
+    const myK = mine.find(p => p.type === 'OU');
+    if (myK) for (const e of G.pieces) {
+      if (e.side !== O || e.type === 'OU') continue;
+      const ex = e.state === 'moving' ? e.tx : e.x, ey = e.state === 'moving' ? e.ty : e.y;
+      if (Math.max(Math.abs(ex - myK.x), Math.abs(ey - myK.y)) <= 2) shield -= CFG.KDANGER * sm('kingDef');
+    }
     // 敵の王へ近づく：いちばん近い駒との距離が縮まるほど点数（とどめを刺しに行く道すじ）
     let hunt = 0;
     const ek = G.pieces.find(p => p.side === O && p.type === 'OU');
@@ -721,7 +739,9 @@ function cpuThink(S = 1, dk = G.diff, sync = false) {
         const dmg = win ? Math.min(1, (tDef * CFG.SUP * defSup + bD) / Math.max(1, p.hp)) : 1;
         imm = win ? V(e) * (e.type === 'OU' ? 8 : 1) - V(p) * dmg * 0.6 : -V(p);
         imm += (sm('aggr') - 1) * 10; // 攻撃的な人は、乗る手を好む
-        if (p.type === 'OU') imm -= others === 0 ? 0 : kingJoins ? 15 : 40; // 王で攻めるのは最後の手段（駒が少なくなったら、ためらいを減らす）
+        // 王で攻めるのは最後の手段（駒が少なくなったら、ためらいを減らす）。
+        // ただし反撃されないとわかっていれば（乗る相手に助太刀がいない・ほかの駒が助太刀に入ってこられない）、ためらわない
+        if (p.type === 'OU' && !(CFG.KING_SAFE_ATTACK && defSup === 0 && !canReinforce(O, o.x, o.y, e))) imm -= others === 0 ? 0 : kingJoins ? 15 : 40;
         p.x = o.x; p.y = o.y; p.state = 'grappled'; const es = e.state; e.state = 'grappled';
         eArr = evaluate();
         e.state = es;
