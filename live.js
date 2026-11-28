@@ -458,25 +458,29 @@ const LIVE = (() => {
       const x = i === 0 ? W * 0.27 : W * 0.73, y = H - 12 * u + bob;
       const won = G.over && G.winner === i;
       if (won) celebrate(p, x, y, k, ts);   // 勝った王（玉）のまわりに、祝福の粒
-      drawSprite(p, 'idle', x, y, k, i === 0 ? 1 : -1, won ? 1 : 0.6, COL[i]);
+      drawSprite(p, 'idle', x, y, k, i === 0 ? 1 : -1, won ? 1 : 0.6, won ? '#ffd24a' : COL[i]);   // 勝った王は金色に光る
+      if (won) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; drawSprite(p, 'idle', x, y, k, i === 0 ? 1 : -1, 0.7, '#ffd24a'); ctx.restore(); }   // 線を重ねて明るく
     });
   }
   // 勝った王（玉）のまわり：盤の「攻め入る駒」と同じ、正方形の粒が内から外へあふれる（色も同じ、黄色寄りの青・赤）
   function celebrate(p, x, y, k, ts) {
-    const col = (typeof AURA !== 'undefined' ? AURA : ['#f0ffb4', '#ffc23a'])[p.side];
-    const u = unit(), cy = y - 148 * k * 0.5, N = 18;   // キャラの高さの真ん中あたりから
+    // 勝った王（玉）のまわり：大きめの正方形の金色の粒が、内から外へたくさんあふれる（金色に光る）
+    const GOLDS = ['#ffd24a', '#ffe68a', '#fff3b0', '#ffb020'];
+    const u = unit(), cy = y - 148 * k * 0.5, N = 40;
     ctx.save();
-    ctx.fillStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 10 * u;
+    ctx.shadowColor = '#ffd24a'; ctx.shadowBlur = 14 * u;
     for (let i = 0; i < N; i++) {
-      const ph = (ts * 0.8 + i / N) % 1;
-      const a = i * 2.39996 + Math.floor(ts * 0.8 + i / N) * 1.7;
-      const r = (22 + 70 * ph) * u;
-      const s = (2.5 + 2 * ((i * 37) % 5) / 4) * u * (1 - ph * 0.5);
-      ctx.globalAlpha = Math.sin(Math.PI * Math.min(1, ph * 1.3)) * 0.95;
-      ctx.fillRect(x + Math.cos(a) * r - s, cy + Math.sin(a) * r * 0.8 - ph * 10 * u - s, s * 2, s * 2);
+      const ph = (ts * 0.75 + i / N) % 1;
+      const a = i * 2.39996 + Math.floor(ts * 0.75 + i / N) * 1.7;
+      const r = (16 + 100 * ph) * u;
+      const s = (3.5 + 3.5 * ((i * 37) % 5) / 4) * u * (1 - ph * 0.45);
+      ctx.globalAlpha = Math.sin(Math.PI * Math.min(1, ph * 1.25)) * 0.95;
+      ctx.fillStyle = GOLDS[i % GOLDS.length];
+      ctx.fillRect(x + Math.cos(a) * r - s, cy + Math.sin(a) * r * 0.8 - ph * 12 * u - s, s * 2, s * 2);
     }
     ctx.restore();
   }
+
 
   // 火花・衝撃波・斬撃・文字
   function effects(u, dt) {

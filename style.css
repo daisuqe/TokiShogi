@@ -453,10 +453,11 @@ button.quit-btn:hover:not(:disabled) { opacity: 1; color: var(--g5); border: non
   animation: win-in 0.35s ease-out;
 }
 .win-banner[hidden] { display: none; }
-.win-banner.blue { color: #8ec5ff; text-shadow: 0 0 12px var(--you), 0 0 24px var(--you); }
-.win-banner.red { color: #ff9a9e; text-shadow: 0 0 12px var(--cpu), 0 0 24px var(--cpu); }
+.win-banner.blue { color: #8ec5ff; text-shadow: 0 0 10px #ffd24a, 0 0 22px #ffb020; }   /* 勝者の名前は、金色に光る */
+.win-banner.red { color: #ff9a9e; text-shadow: 0 0 10px #ffd24a, 0 0 22px #ffb020; }
+.win-banner .win-face { box-shadow: none; filter: drop-shadow(0 0 6px #ffd24a); }
 .win-banner.draw { color: var(--g5); text-shadow: 0 0 12px var(--g4); }
 @keyframes win-in { from { opacity: 0; transform: translateY(-50%) scale(1.3); } to { opacity: 1; transform: translateY(-50%) scale(1); } }
 @media (max-width: 480px) { .win-banner { font-size: 22px; } }
 
-.win-banner .win-face { width: 40px; height: 40px; vertical-align: -10px; filter: none; }
+.win-banner .win-face { width: 40px; height: 40px; vertical-align: -10px; }
