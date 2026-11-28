@@ -83,10 +83,13 @@ const LIVE = (() => {
   function first(g) { pendingFirst.set(g, now()); }
   const now = () => performance.now() / 1000;
 
-  const isKing = g => g.atk.type === 'OU' || g.def.type === 'OU';
+  // 中継の優先：王（青の王）の試合 ＞ 玉（赤の王）の試合 ＞ ほかは始まった順
+  const hasKing = (g, side) => [g.atk, g.def].some(p => p.type === 'OU' && p.side === side);
+  const prio = g => hasKing(g, 0) ? 2 : hasKing(g, 1) ? 1 : 0;
   function pickNext() {
-    // 王が関わる試合を優先して映す。なければ、いちばん古い試合
-    const g = G.grapples.find(isKing) || G.grapples[0];
+    // 優先の高い試合を映す（王 ＞ 玉 ＞ ほか）。同じなら、いちばん古い試合
+    let g = null;
+    for (const q of G.grapples) if (!g || prio(q) > prio(g)) g = q;   // 同じ優先なら、先に始まった試合
     if (!g) return null;
     const L = g.atk.side === 0 ? g.atk : g.def, R = g.atk.side === 0 ? g.def : g.atk;
     return {
@@ -236,8 +239,7 @@ const LIVE = (() => {
     if (G) {
       if (cur && !cur.end && !G.grapples.includes(cur.g)) cur.end = cur.end || { t: now(), loser: null, winner: null }; // 知らせが来なかったとき
       if (cur && cur.end && now() - cur.end.t > (cur.end.retreat ? cur.end.dur : 2.2)) cur = null;
-      // 王の試合が始まったら、いまの試合の途中でも切り替える
-      if (cur && !cur.end && !isKing(cur.g) && G.grapples.some(isKing)) cur = null;
+      if (cur && !cur.end && G.grapples.some(q => prio(q) > prio(cur.g))) cur = null;   // もっと優先の試合が始まったら、途中でも切り替える
       if (!cur && !G.over) {
         const nx = pickNext();
         if (nx) {
