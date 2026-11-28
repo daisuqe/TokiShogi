@@ -12,4 +12,4 @@ crons = ["0 18 * * *"]   # 毎日 03:00（日本時間）：COM どうしの対�
 
 [vars]
 # ゲームのページ（ここからだけ呼べる）。カンマ区切り
-ALLOW_ORIGINS = "https://daisuqe.github.io,http://localhost:8000,http://localhost:8123"
+ALLOW_ORIGINS = "https://daisuqe.github.io,http://localhost:8000,http://localhost:8123,http://localhost:8767"

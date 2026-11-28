@@ -303,11 +303,8 @@ button.quit-btn:hover:not(:disabled) { opacity: 1; color: var(--g5); border: non
 .quit-btn:focus-visible { outline: 2px solid #fff; outline-offset: -4px; opacity: 1; }
 
 /* スタート画面：モード（ランキング・フリー・観戦）、フリーの強さ、秒数 */
-.modes, .secs { display: flex; gap: 6px; justify-content: center; align-items: stretch; margin-bottom: 8px; }
+.modes { display: flex; gap: 6px; justify-content: center; align-items: stretch; margin-bottom: 8px; }
 .modes button { flex: 1 1 0; min-width: 0; padding: 14px 2px; font-size: 16px; letter-spacing: 0; white-space: nowrap; }
-.secs { margin-bottom: 4px; }
-.secs button { flex: 1 1 0; min-width: 0; padding: 8px 0; }   /* 上の3つのモードのボタンと同じ幅 */
-.secs button[aria-pressed="true"] { background: rgba(63, 220, 120, 0.15); border-color: var(--g4); color: var(--g5); box-shadow: 0 0 10px rgba(63, 220, 120, 0.35); }
 /* 狭いスマホでも、難しさの5つの正方形が、4文字の「やさしい」を折り返さずに並ぶように余白を詰める */
 @media (max-width: 420px) {
   .overlay.start { padding-left: 8px; padding-right: 8px; }
@@ -393,3 +390,48 @@ button.quit-btn:hover:not(:disabled) { opacity: 1; color: var(--g5); border: non
 
 /* 「SETTING」：設定の3つのボタンの上の見出し（小さく、薄く） */
 .settings-title { margin: 12px 0 4px; text-align: center; font-size: 12px; letter-spacing: 0.3em; color: var(--g3); }
+
+/* 設定の4つめ：秒数のボタンと、押すと出る小さなメニュー（右クリックメニューのような形） */
+.sec-wrap { position: relative; flex: 1 1 0; min-width: 0; display: flex; }
+.sec-wrap #setSec { flex: 1 1 0; }
+.sec-menu {
+  position: absolute; top: calc(100% + 4px); right: 0; z-index: 30;
+  min-width: 100%; display: flex; flex-direction: column;
+  background: var(--g1); border: 1px solid var(--g4);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6), 0 0 12px rgba(63, 220, 120, 0.35);
+}
+.sec-menu[hidden] { display: none; }
+.settings .sec-menu button { border: none; border-radius: 0; padding: 8px 14px; font-size: 14px; text-align: left; white-space: nowrap; background: transparent; opacity: 1; color: var(--g4); }
+.settings .sec-menu button + button { border-top: 1px solid var(--line); }
+.settings .sec-menu button[aria-checked="true"] { color: var(--g5); background: rgba(63, 220, 120, 0.15); }
+.settings .sec-menu button:hover { background: rgba(63, 220, 120, 0.22); }
+
+/* 顔（xwordx と同じ 16×16 のドット絵）：肌・髪・服のキャンバスと、目・口・表情の画像を重ねる */
+.face { position: relative; display: inline-block; flex: none; width: 28px; height: 28px; vertical-align: middle; }
+.face[hidden] { display: none; }
+.face img, .face canvas { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; }
+.face img[hidden] { display: none; }
+.hud-face { width: 26px; height: 26px; margin-right: -4px; }
+.rank-row .face { width: 24px; height: 24px; }
+.rank-row { align-items: center; }
+.rv-name { display: flex; align-items: center; gap: 8px; }
+.rv-face { width: 36px; height: 36px; }
+.face.big { width: clamp(120px, 36vw, 168px); height: clamp(120px, 36vw, 168px); }
+#rvEdit:disabled { opacity: 0.35; }
+/* キャラクターエディット */
+.edit-panel { display: flex; flex-direction: column; gap: 10px; max-height: calc(100svh - 32px); }
+.edit-preview { display: grid; justify-items: center; gap: 8px; padding: 8px; background: radial-gradient(circle, rgba(63, 220, 120, 0.18), transparent 70%); }
+.edit-expr { display: flex; gap: 6px; }
+.edit-expr button { padding: 4px 10px; font-size: 13px; }
+.edit-expr button.selected { border-color: var(--g4); color: var(--g5); background: rgba(63, 220, 120, 0.15); }
+.edit-status { margin: 0; min-height: 1.2em; font-size: 12px; letter-spacing: 0.1em; color: var(--g3); }
+.edit-scroll { overflow: auto; min-height: 0; flex: 1 1 auto; padding-right: 4px; }
+.edit-section { margin-bottom: 12px; text-align: left; }
+.edit-section h4 { margin: 0 0 6px; font-size: 14px; font-weight: normal; letter-spacing: 0.12em; color: var(--g4); }
+.edit-options { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 6px; }
+.edit-option { display: grid; place-items: center; aspect-ratio: 1; min-width: 0; padding: 3px; border: 2px solid var(--g2); background: #0a1a12; cursor: pointer; }
+.edit-option[hidden] { display: none; }
+.edit-option canvas, .edit-option img { width: 100%; height: 100%; image-rendering: pixelated; }
+.edit-option img { background: #ffb985; }
+.edit-option.color { border-color: rgba(255, 255, 255, 0.35); }
+.edit-option.selected { border-color: #ffd24a; outline: 2px solid #ffd24a; outline-offset: 1px; }

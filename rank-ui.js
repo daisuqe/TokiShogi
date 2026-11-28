@@ -17,6 +17,7 @@ const RankUI = (() => {
       startGame('rank', false, {
         name: opp.name, rankLabel: place(opp.rank), strength: RankCore.strengthOf(opp.rating), params: opp.params,
         nonce: opp.nonce, first: !!opp.first, oppRating: opp.rating, myName: me.registered ? me.name : null,
+        avatar: opp.avatar || null,   // 相手の顔（ユーザーならその人が決めた顔、COM は名前から決まる顔）
       });
     } catch (e) {
       msg('ランキングにつながりません。しばらくしてからもう一度');
@@ -96,10 +97,13 @@ const RankUI = (() => {
         const li = document.createElement('li');
         li.className = 'rank-row' + (me.registered && me.name === r.name ? ' me' : '') + (r.isCom ? ' com' : '');
         const rk = document.createElement('span'); rk.className = 'rk'; rk.textContent = r.rank;
+        // 顔：自分は、この端末で決めた顔。ほかの人はサーバーの顔、COM は名前から決まる顔
+        const isMe = me.registered && me.name === r.name;
+        const face = typeof FACE !== 'undefined' ? FACE.make(isMe ? FACE.mine(r.name) : FACE.of(r)) : document.createElement('span');
         const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = r.name + (r.isCom ? '' : ' ★');
         if (r.isCom) { const tag = document.createElement('small'); tag.className = 'com-tag'; tag.textContent = 'COM'; nm.append(tag); }   // COM は小さく薄く
         const rt = document.createElement('span'); rt.className = 'rt'; rt.textContent = r.rating;
-        li.append(rk, nm, rt);
+        li.append(rk, face, nm, rt);
         list.append(li);
       }
       const mine = list.querySelector('.me');
@@ -114,22 +118,101 @@ const RankUI = (() => {
     const dlg = $('rankView');
     $('rvErr').hidden = true;
     $('rvName').textContent = '-'; $('rvRank').textContent = '-'; $('rvNote').textContent = '';
+    $('rvFace').hidden = true; $('rvEdit').disabled = true;
     dlg.hidden = false;
     $('rvStart').focus();
     try {
       const me = await RankClient.me();
       if (me.registered) {
         $('rvName').textContent = me.name;
+        // 顔：この端末で決めていなければ、サーバーに登録してある顔を使う（別の端末で決めた顔）
+        if (me.avatar && !FACE.hasMine()) FACE.saveMine(me.avatar);
+        FACE.paint($('rvFace'), FACE.mine(me.name)); $('rvFace').hidden = false;
+        $('rvEdit').disabled = false;
+        myName = me.name;
         $('rvRank').textContent = me.inRanking === false ? '圏外' : place(me.rank);
       } else {
         $('rvName').textContent = '未登録';
-        $('rvNote').textContent = '1戦目のあとに、名前を登録できます';
+        $('rvNote').textContent = '1戦目のあとに、名前を登録できます。CHARACTER EDIT は登録のあとに';
       }
     } catch (e) {
       $('rvErr').textContent = 'ランキングにつながりません'; $('rvErr').hidden = false;
     }
   }
   const closeView = () => { $('rankView').hidden = true; };
+
+  // ===== キャラクターエディット（xwordx と同じ部品）。変えるたびに、この端末に保存し、少し待ってサーバーにも登録しなおす =====
+  let myName = null, cur = null, built = false, upTimer = 0, dirty = false;
+  const edOptions = [];
+  const status = t => { $('editStatus').textContent = t; };
+  async function upload() {
+    clearTimeout(upTimer); upTimer = 0;
+    if (!dirty) return;
+    dirty = false;
+    status('SAVING...');
+    try {
+      const r = await RankClient.setAvatar(cur);
+      status(r && r.ok ? 'SAVED' : 'SAVE FAILED');
+      if (!r || !r.ok) dirty = true;
+    } catch (e) { status('SAVE FAILED'); dirty = true; }
+  }
+  function refreshEditor() {
+    FACE.paint($('editFace'), cur, ($('editView').querySelector('.edit-expr .selected') || {}).dataset?.expr || 'normal');
+    for (const { button, key, value, preview } of edOptions) {
+      button.hidden = key === 'mouth' && value === 'mouth8' && cur.hair.endsWith('w');   // w の髪型では mouth8 は選べない
+      const on = cur[key] === value;
+      button.classList.toggle('selected', on);
+      button.setAttribute('aria-pressed', String(on));
+      if (key === 'hair') FACE.paintMask(preview, FACE.XW.layerMasks.hair[value], cur.hairColor);   // 髪型の見本は、いまの髪の色で
+    }
+    FACE.paint($('rvFace'), cur);
+  }
+  function buildEditor() {
+    if (built) return;
+    built = true;
+    const XW = FACE.XW;
+    const groups = [['edHair', 'hair', XW.options.hair], ['edEyes', 'eyes', XW.options.eyes], ['edMouth', 'mouth', XW.options.mouth],
+      ['edHairColor', 'hairColor', XW.palettes.hair], ['edClothColor', 'clothColor', XW.palettes.cloth], ['edSkinColor', 'skinColor', XW.palettes.skin]];
+    for (const [id, key, values] of groups) for (const value of values) {
+      const button = document.createElement('button');
+      button.type = 'button'; button.className = 'edit-option';
+      button.setAttribute('aria-label', `${key} ${value}`);
+      let preview = null;
+      if (key.endsWith('Color')) { button.classList.add('color'); button.style.background = value; }
+      else if (key === 'hair') { preview = document.createElement('canvas'); preview.width = preview.height = 16; button.append(preview); }
+      else { preview = document.createElement('img'); preview.alt = ''; preview.src = `face/parts/${value}.png`; button.append(preview); }
+      button.addEventListener('click', () => {
+        if (key === 'mouth' && value === 'mouth8' && cur.hair.endsWith('w')) return;
+        cur = FACE.sanitize({ ...cur, [key]: value });
+        FACE.saveMine(cur);
+        dirty = true; status('');
+        clearTimeout(upTimer); upTimer = setTimeout(upload, 900);
+        refreshEditor();
+      });
+      $(id).append(button);
+      edOptions.push({ button, key, value, preview });
+    }
+    for (const b of $('editView').querySelectorAll('.edit-expr button')) b.addEventListener('click', () => {
+      for (const o of $('editView').querySelectorAll('.edit-expr button')) o.classList.toggle('selected', o === b);
+      refreshEditor();
+    });
+  }
+  async function openEditor() {
+    const me = await RankClient.me().catch(() => ({ registered: false }));
+    if (!me.registered) { $('rvEdit').disabled = true; return; }   // 登録していない人は入れない
+    myName = me.name;
+    if (me.avatar && !FACE.hasMine()) FACE.saveMine(me.avatar);
+    cur = FACE.mine(myName);
+    buildEditor();
+    status('');
+    $('editView').hidden = false;
+    refreshEditor();
+    $('editBack').focus();
+  }
+  const closeEditor = () => { $('editView').hidden = true; if (dirty) upload(); $('rvEdit').focus(); };
+  $('rvEdit').addEventListener('click', openEditor);
+  $('editBack').addEventListener('click', closeEditor);
+  $('editView').addEventListener('click', e => { if (e.target === $('editView')) closeEditor(); });
   $('modeRank').addEventListener('click', openView);
   $('rvStart').addEventListener('click', () => { closeView(); start(); });
   $('rvTable').addEventListener('click', showTable);

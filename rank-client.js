@@ -6,6 +6,7 @@
 //   preview(opp, result, margin)       登録したらどうなるか { registered, rank }
 //   register(name, opp, result, margin) 名前を登録する { ok, error, registered, rank }
 //   submit(nonce, result, params)      結果を送る { oldRank, newRank, rating, delta }
+//   setAvatar(avatar)                  自分の顔を登録しなおす（キャラクターエディット）{ ok }
 // サーバーを用意したら、ここに URL を入れる（例：'https://toki-rank.<あなたのアカウント>.workers.dev'）。空なら端末の中だけ。
 const RANK_API = 'https://toki-rank.haradadaisuke.workers.dev';
 
@@ -16,7 +17,9 @@ const RankClient = (() => {
   const load = (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
   const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* 保存できなくても動く */ } };
   const newToken = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('');
-  const pubRow = r => ({ name: r.name, rank: r.rank, rating: Math.round(r.rating), isCom: !!r.isCom, params: r.params || RC.neutralStyle() });
+  const pubRow = r => ({ name: r.name, rank: r.rank, rating: Math.round(r.rating), isCom: !!r.isCom, params: r.params || RC.neutralStyle(), avatar: r.avatar || null });
+  // 登録のときに送る顔：この端末で決めた顔（まだなら、名前から決まる顔）
+  const myAvatar = name => (typeof FACE !== 'undefined' ? RC.cleanAvatar(FACE.mine(name)) : null);
 
   // ===== この端末の中だけのランキング（サーバーがないとき）=====
   function localBackend() {
@@ -32,7 +35,7 @@ const RankClient = (() => {
       async me() {
         if (!st.user) return { registered: false };
         const r = rows().find(x => x.name === st.user.name);
-        return { registered: true, name: st.user.name, rank: r ? r.rank : 101, rating: Math.round(st.user.rating), inRanking: !!r };
+        return { registered: true, name: st.user.name, rank: r ? r.rank : 101, rating: Math.round(st.user.rating), inRanking: !!r, avatar: st.user.avatar || null };
       },
       async opponent() {
         const all = rows();
@@ -53,7 +56,7 @@ const RankClient = (() => {
         const rating = RC.initialRating(opp.rating, result, margin);
         const pv = RC.previewEntry(users(), st.coms, rating);
         const token = newToken();
-        st.user = { name, rating, games: 1, wins: result >= 1 ? 1 : 0, losses: result >= 1 ? 0 : 1, params: null };
+        st.user = { name, rating, games: 1, wins: result >= 1 ? 1 : 0, losses: result >= 1 ? 0 : 1, params: null, avatar: myAvatar(name) };
         save(KEY_ME, { name, token });
         persist();
         return { ok: true, registered: pv.registered, rank: pv.rank };
@@ -70,6 +73,12 @@ const RankClient = (() => {
         persist();
         const after = rows().find(x => x.name === st.user.name);
         return { oldRank, newRank: after ? after.rank : 101, rating: Math.round(st.user.rating), delta: Math.round(st.user.rating - oldRating) };
+      },
+      async setAvatar(avatar) {
+        if (!st.user) return { ok: false, error: 'not-registered' };
+        st.user.avatar = RC.cleanAvatar(avatar);
+        persist();
+        return { ok: !!st.user.avatar };
       },
     };
   }
@@ -100,13 +109,14 @@ const RankClient = (() => {
         const mine = load(KEY_ME);
         const r = await fetch(base + '/api/register', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, token, opp: opp.name, nonce: opp.nonce, result, margin }),
+          body: JSON.stringify({ name, token, opp: opp.name, nonce: opp.nonce, result, margin, avatar: myAvatar(name) }),
         }).then(x => x.json());
         if (r.ok) save(KEY_ME, { name, token });
         else if (mine) save(KEY_ME, mine);
         return r;
       },
       async submit(nonce, result, params) { return api('/api/result', { nonce, result, params }); },
+      async setAvatar(avatar) { return api('/api/avatar', { avatar: RC.cleanAvatar(avatar) }); },
     };
   }
 

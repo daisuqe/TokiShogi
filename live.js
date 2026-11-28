@@ -56,6 +56,31 @@ const LIVE = (() => {
   let parts = [], rings = [], slashes = [], beams = [], texts = [];
   let glowC = null;
   let shake = 0, flash = 0, flashColor = '255,255,255', glitch = 0;
+  // 動いた直後の一撃（50）：一瞬スローになって、寄って、派手に決まる
+  let slowT0 = -9, slowDur = 0.75, zoomX = 0, zoomY = 0, lines = [];
+  const pendingFirst = new Map();   // 乗った瞬間の一撃は、中継がその試合を映し始めてから見せる
+  function bigHit(p) {
+    const isL = p === cur.L, pos = fighterPos(isL), u = unit(), t = now();
+    const x = pos.x, y = pos.y - 50 * u;
+    p._lh = t;
+    slowT0 = t; zoomX = x; zoomY = y;
+    const gold = ['#ffd24a', '#fff3b0', '#ffffff', '#ffb020', ...SPARK[p.side]];
+    for (let i = 0; i < 60; i++) {
+      const a = Math.random() * Math.PI * 2, sp = (80 + Math.random() * 320) * u;
+      parts.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 40 * u, life: 0, max: 0.6 + Math.random() * 0.6, size: (2 + Math.random() * 3.5) * u, color: gold[i % gold.length] });
+    }
+    rings.push({ x, y, t, max: 0.5, r: 90 * u, color: '#ffd24a' });
+    rings.push({ x, y, t: t + 0.08, max: 0.45, r: 60 * u, color: '#ffffff' });
+    rings.push({ x, y, t: t + 0.16, max: 0.5, r: 130 * u, color: COL[p.side] });
+    // 十字の斬撃
+    slashes.push({ x, y, ang: -0.75, t, max: 0.35, len: 170 * u, color: '#fff3b0' });
+    slashes.push({ x, y, ang: 0.75, t: t + 0.06, max: 0.35, len: 150 * u, color: '#ffffff' });
+    // 集中線
+    lines = Array.from({ length: 28 }, () => ({ a: Math.random() * Math.PI * 2, w: 1 + Math.random() * 3, r0: (60 + Math.random() * 40) * u }));
+    shake = Math.max(shake, 10 * u);
+    flash = 0.85; flashColor = '255,226,140';
+  }
+  function first(g) { pendingFirst.set(g, now()); }
   const now = () => performance.now() / 1000;
 
   const isKing = g => g.atk.type === 'OU' || g.def.type === 'OU';
@@ -98,6 +123,7 @@ const LIVE = (() => {
     slashes.push({ x: pos.x, y: pos.y - 48 * u, ang: (isL ? -0.7 : -2.4) + (Math.random() - 0.5) * 0.4, t, max: 0.22, len: 90 * u, color: '#ffffff' });
     shake = Math.max(shake, 3.5 * u);
     flash = Math.max(flash, 0.22); flashColor = p.side === 0 ? '120,170,255' : '255,110,120';
+    if (n >= CFG.FIRST) bigHit(p);
   }
   // 攻めた側が組み合いから離れる：その駒が1秒ぶん後ろへ下がって、中継を終える
   function retreat(g) {
@@ -198,7 +224,10 @@ const LIVE = (() => {
   function frame() {
     requestAnimationFrame(frame);
     const t = performance.now();
-    const dt = Math.min(0.05, (t - last) / 1000); last = t;
+    const dtReal = Math.min(0.05, (t - last) / 1000); last = t;
+    // スロー：決まった瞬間は止まり（0.08秒）、そのあと4分の1の速さで戻っていく
+    const sf = (now() - slowT0) / slowDur;
+    const dt = sf < 0 || sf >= 1 ? dtReal : sf < 0.11 ? dtReal * 0.03 : dtReal * (0.25 + 0.75 * sf * sf);
     if (!resize()) return;
     const u = unit();
 
@@ -211,10 +240,15 @@ const LIVE = (() => {
       if (cur && !cur.end && !isKing(cur.g) && G.grapples.some(isKing)) cur = null;
       if (!cur && !G.over) {
         const nx = pickNext();
-        if (nx) { cur = nx; glitch = 0.3; flash = 0.35; flashColor = '255,255,255'; }
+        if (nx) {
+          cur = nx; glitch = 0.3; flash = 0.35; flashColor = '255,255,255';
+          if (now() - (pendingFirst.get(nx.g) || -9) < 1.5) cur.firstAt = now() + 0.4;   // 乗った瞬間の一撃を、出てきたところで見せる
+        }
       }
     }
 
+    if (cur && cur.firstAt && now() >= cur.firstAt) { cur.firstAt = 0; if (!cur.end) bigHit(cur.atkIsL ? cur.R : cur.L); }
+    for (const [g, t0] of pendingFirst) if (now() - t0 > 3) pendingFirst.delete(g);
     // 体力の見せ方：表の体力へ素早く、白い残像はゆっくり
     if (cur) {
       const hl = cur.end ? cur.L.hp : cur.L.hp, hr = cur.R.hp;
@@ -236,8 +270,25 @@ const LIVE = (() => {
     ctx.save();
     if (shake > 0.1) { ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake); shake *= Math.pow(0.0005, dt); }
     background(u, t / 1000);
+    ctx.save();
+    if (sf >= 0 && sf < 1) {                      // 一撃の所へ寄る
+      const z = 1 + 0.22 * (1 - sf) * (1 - sf);
+      ctx.translate(zoomX, zoomY); ctx.scale(z, z); ctx.translate(-zoomX, -zoomY);
+    }
     if (cur) drawMatch(u, dt); else standby(u, t / 1000);
     effects(u, dt);
+    ctx.restore();
+    if (sf >= 0 && sf < 1 && lines.length) {      // 集中線
+      ctx.save();
+      ctx.globalAlpha = (1 - sf) * 0.8; ctx.strokeStyle = '#fff3b0'; ctx.shadowColor = '#ffd24a'; ctx.shadowBlur = 8;
+      const R = Math.hypot(W, H);
+      for (const l of lines) {
+        ctx.lineWidth = l.w; ctx.beginPath();
+        ctx.moveTo(zoomX + Math.cos(l.a) * l.r0, zoomY + Math.sin(l.a) * l.r0);
+        ctx.lineTo(zoomX + Math.cos(l.a) * R, zoomY + Math.sin(l.a) * R); ctx.stroke();
+      }
+      ctx.restore();
+    }
     ctx.restore();
 
     // 全体の演出：フラッシュ・走査線・枠
@@ -475,5 +526,5 @@ const LIVE = (() => {
   }
   titleFigs();
   requestAnimationFrame(frame);
-  return { strike, hit, end, retreat, figure };
+  return { strike, hit, end, retreat, figure, first };
 })();

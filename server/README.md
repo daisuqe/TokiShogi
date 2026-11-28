@@ -13,6 +13,7 @@ npm install
 npx wrangler login                        # ブラウザで Cloudflare にログイン
 npx wrangler d1 create toki-rank          # 出てきた database_id を wrangler.toml の database_id に書く
 npx wrangler d1 execute toki-rank --remote --file=schema.sql
+npx wrangler d1 execute toki-rank --remote --file=migrate-avatar.sql   # 顔の列（2026-11-28 より前に作ったデータベースだけ）
 npx wrangler deploy                       # 出てきた URL（https://toki-rank.<アカウント>.workers.dev）を控える
 ```
 
@@ -41,6 +42,7 @@ npx wrangler dev --local --port 8787
 | `POST /api/preview` | 登録したらどうなるか |
 | `POST /api/register` | 名前（英大文字4文字）を登録。端末が作った秘密の印（token）の SHA-256 だけを保存 |
 | `POST /api/result` | 結果を送る（引換券は1回きり。相手を受け取ってから15秒たたないと送れない） |
+| `POST /api/avatar` | 自分の顔（キャラクターエディット）を登録しなおす。名前の持ち主だけ |
 
 ## ルール
 

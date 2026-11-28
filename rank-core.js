@@ -149,10 +149,19 @@
     }
   }
 
+  // 顔（キャラクターエディットの部品と色）：形だけ確かめる。部品の名前が本当にあるかは、表示する側（face.js）で確かめる
+  function cleanAvatar(a) {
+    if (!a || typeof a !== 'object') return null;
+    const part = v => typeof v === 'string' && /^[a-z0-9]{1,10}$/.test(v);
+    const col = v => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v);
+    if (!part(a.hair) || !part(a.eyes) || !part(a.mouth) || !col(a.skinColor) || !col(a.hairColor) || !col(a.clothColor)) return null;
+    return { hair: a.hair, eyes: a.eyes, mouth: a.mouth, skinColor: a.skinColor.toUpperCase(), hairColor: a.hairColor.toUpperCase(), clothColor: a.clothColor.toUpperCase() };
+  }
+
   const API = {
     MAX_ENTRIES, NEAR, STYLE_KEYS, clamp, clamp01, hash, mulberry32, expected, strengthOf, neutralStyle,
     validName, cleanName, makeComs, standings, firstOpponent, pickOpponent, initialRating, previewEntry,
-    applyResult, mergeStyle, cleanStyle, dailyUpdate, byRating,
+    applyResult, mergeStyle, cleanStyle, dailyUpdate, byRating, cleanAvatar,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.RankCore = API;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS entries (
   wins       INTEGER NOT NULL DEFAULT 0,
   losses     INTEGER NOT NULL DEFAULT 0,
   params     TEXT,                      -- うち筋の傾向（JSON：aggr, tempo, support, rotation, promote, kingDef, retreat）
+  avatar     TEXT,                      -- 顔（JSON：hair, eyes, mouth, skinColor, hairColor, clothColor）。ユーザーだけ
   token_hash TEXT,                      -- 名前の持ち主の印（ユーザーだけ。SHA-256）
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL

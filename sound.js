@@ -146,9 +146,11 @@ const SND = (() => {
     strike:  (t, v) => { swing(t, 0.3 * v); blade(t + 0.1, 1500 + Math.random() * 1200, 0.2 * v, 0.45); },
     support: (t, v) => { swing(t, 0.16 * v, 0.1); blade(t + 0.07, 2600 + Math.random() * 1000, 0.1 * v, 0.3); },
     hit:     (t, v) => { cut(t, 0.42 * v); blade(t + 0.02, 2200, 0.12 * v, 0.35); },
+    first:   (t, v) => { swing(t, 0.45 * v, 0.18); cut(t + 0.05, 0.55 * v); blade(t + 0.06, 2400, 0.4 * v, 1.0); blade(t + 0.09, 3300, 0.22 * v, 0.7); taiko(t + 0.04, 0.8 * v, 120); },   // 動いた直後の一撃（50）
     ko:      (t, v) => { swing(t, 0.4 * v, 0.2); cut(t + 0.1, 0.6 * v); blade(t + 0.12, 1700, 0.34 * v, 1.2); taiko(t + 0.14, 0.9 * v, 90); gong(t + 0.2, 0.35 * v); },
     // 試合の終わり
     win:     t => { taiko(t, 0.8, 110); [0, 2, 3, 4, 5, 7, 9].forEach((n, i) => koto(t + 0.25 + i * 0.1, note(n, 1), 0.28, 1.4)); bell(t + 0.9, note(0, 2), 0.25, 2.4); },
+    draw:    t => { taiko(t, 0.6, 100); bell(t + 0.2, note(0, 2), 0.22, 2.2); [0, 2, 0].forEach((n, i) => koto(t + 0.3 + i * 0.25, note(n, 1), 0.22, 1.2)); },   // 引き分け
     lose:    t => { taiko(t, 0.8, 80); gong(t + 0.05, 0.45); [9, 7, 5, 4, 3, 2].forEach((n, i) => koto(t + 0.3 + i * 0.16, note(n - 5, 0), 0.24, 1.6)); },
   };
 

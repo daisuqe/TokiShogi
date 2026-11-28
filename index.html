@@ -25,7 +25,7 @@
 <link rel="stylesheet" href="font.css?v=20261125b">
 <link rel="stylesheet" href="font-misaki.css?v=20261127a">
 <link rel="stylesheet" href="font-yodaka.css?v=20261128a">
-<link rel="stylesheet" href="style.css?v=20261128b">
+<link rel="stylesheet" href="style.css?v=20261128m">
 </head>
 <body>
 <main>
@@ -33,6 +33,7 @@
   <section class="live" aria-label="対戦の中継"><canvas id="live"></canvas></section>
 
   <div class="hud cpu">
+    <span id="faceCpu" class="face hud-face" hidden></span>
     <span class="who" id="whoCpu">COM</span>
     <span class="label">次の手</span><span id="handsCpu" class="hands"></span>
     <span class="label">取った駒</span><span id="capsCpu" class="caps"></span>
@@ -45,6 +46,7 @@
   </div>
 
   <div class="hud you">
+    <span id="faceYou" class="face hud-face" hidden></span>
     <span class="who" id="whoYou">あなた</span>
     <span class="label">次の手</span><span id="handsYou" class="hands"></span>
     <span class="label">取った駒</span><span id="capsYou" class="caps"></span>
@@ -72,38 +74,43 @@
     <!-- モード：ランキング（そのまま始まる）／フリー（強さを選ぶ）／観戦（COM同士） -->
     <div class="modes">
       <button id="modeRank" class="primary" type="button">ランクマッチ</button>
-      <button id="modeFree" type="button" aria-haspopup="dialog">フリー</button>
+      <button id="modeFree" type="button" aria-haspopup="dialog">フリー対戦</button>
       <button id="watch" type="button">観戦</button>
     </div>
-    <!-- 秒数：移動・回転・休みなどの1回の長さ。下のルール説明の秒数も変わる -->
-    <div class="secs" role="group" aria-label="秒数">
-      <button data-sec="3" type="button">3秒</button>
-      <button data-sec="6" type="button">6秒</button>
-      <button data-sec="9" type="button">9秒</button>
-    </div>
     <p id="rankMsg" class="rank-msg" hidden></p>
-    <!-- 設定：効果音・BGM・駒の上のキャラ（ブラウザに覚えておく） -->
+    <!-- 設定：効果音・BGM・駒の上のキャラ・秒数（ブラウザに覚えておく） -->
     <p class="settings-title">SETTING</p>
     <div class="settings">
       <button id="setSe" type="button"></button>
       <button id="setBgm" type="button"></button>
       <button id="setChara" type="button"></button>
+      <!-- 秒数：移動・回転・休みなどの1回の長さ。押すと 3秒・6秒・9秒 を選ぶ小さなメニュー。下のルール説明の秒数も変わる -->
+      <div class="sec-wrap">
+        <button id="setSec" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="secMenu"></button>
+        <div id="secMenu" class="sec-menu" role="menu" aria-label="秒数" hidden>
+          <button data-sec="3" type="button" role="menuitemradio">3秒</button>
+          <button data-sec="6" type="button" role="menuitemradio">6秒</button>
+          <button data-sec="9" type="button" role="menuitemradio">9秒</button>
+        </div>
+      </div>
     </div>
     <!-- 前半：これだけは知っておく必要があるルール -->
     <ul class="rules">
-      <li>順番はありません。<b>王（玉）を取ったら勝ち</b>。</li>
-      <li>駒を選んで行き先を押すと動きます。</li>
-      <li>回すボタンで<b>90度回転</b>。向きで動ける方向が変わります。</li>
-      <li>相手の駒に乗ると<b>組み合い</b>。体力が0になった方が取られます。</li>
-      <li>組み合いの<b>隣</b>で、<b>そのマスへ動ける向き</b>の駒は自動で<b>助太刀</b>します（駒を選ぶと緑の「助」で場所がわかります）。</li>
+      <li>将棋のルールですが、試合はリアルタイムで行われます</li>
+      <li>駒を選んで行き先を押すと移動します</li>
+      <li>回すボタンで向きを<b>90度回転</b></li>
+      <li>相手の駒に乗ると<b>組み合い</b>。体力が0になった方が取られます</li>
+      <li>組み合いの<b>隣</b>で、<b>そのマスへ動ける向き</b>の駒は自動で<b>助太刀</b>します</li>
     </ul>
     <!-- 後半：秒数など、遊んでいればわかるもの -->
     <ul class="rules rules-sub">
       <li>指示は <b data-t="ACT_GAP">3秒</b> に1回</li>
-      <li>移動、回転、成り <b data-t="MOVE_TIME">3秒</b></li>
-      <li>移動、回転、成り後は <b data-t="COOLDOWN">3秒</b> 動けない</li>
+      <li>移動、回転、成りに <b data-t="MOVE_TIME">6秒</b> かかります。動作後 <b data-t="COOLDOWN">6秒</b>間 その駒は次の動作に入れません</li>
+      <li>攻撃は <b data-t="TICK">2秒</b> ごとに <b>5</b> のダメージを与えます。各体力は <b>100</b></li>
+      <li><b>攻め入った瞬間の攻撃は 50</b> です（敵に乗った瞬間と、助太刀のマスに入った瞬間）</li>
       <li>敵陣（色のついた2段）で、成りボタンで成る</li>
       <li>動き出した駒の元のマスには、その駒がマスを離れるまで入れない</li>
+      <li>王と玉だけになったら引き分け</li>
     </ul>
   </div>
   <!-- 右上：アプリ一覧へ移動するボタン（アイコンは game.js が 16×16 のデータから描く） -->
@@ -173,7 +180,7 @@ daisuqe が保有します。著作権者の事前の書面による許可なく
 <!-- フリー：COM の強さを選ぶ画面（ランクマッチの画面と同じ作り）。いちばん下に「もどる」 -->
 <div id="freeView" class="overlay apps-dlg" role="dialog" aria-modal="true" aria-labelledby="freeViewTitle" hidden>
   <div class="panel apps-panel rank-view-panel">
-    <h3 id="freeViewTitle" class="menu-title">フリー</h3>
+    <h3 id="freeViewTitle" class="menu-title">フリー対戦</h3>
     <button data-diff="easy" type="button">かんたん</button>
     <button data-diff="normal" class="primary" type="button">ふつう</button>
     <button data-diff="hard" type="button">むずかしい</button>
@@ -185,14 +192,38 @@ daisuqe が保有します。著作権者の事前の書面による許可なく
   <div class="panel apps-panel rank-view-panel">
     <h3 id="rankViewTitle" class="menu-title">ランクマッチ</h3>
     <dl class="rank-me">
-      <div><dt>名前</dt><dd id="rvName">-</dd></div>
+      <div><dt>名前</dt><dd class="rv-name"><span id="rvFace" class="face rv-face"></span><span id="rvName">-</span></dd></div>
       <div><dt>順位</dt><dd id="rvRank">-</dd></div>
     </dl>
     <p id="rvNote" class="rv-note"></p>
     <p id="rvErr" class="rank-msg" hidden></p>
     <button id="rvStart" class="primary" type="button">MATCH START</button>
     <button id="rvTable" type="button">ランキングを見る</button>
+    <button id="rvEdit" type="button" aria-haspopup="dialog">CHARACTER EDIT</button>
     <button id="rvBack" type="button">もどる</button>
+  </div>
+</div>
+
+<!-- キャラクターエディット：自分の顔の部品と色を選ぶ（xwordx と同じ仕組み）。変えるとサーバーにも登録しなおす。登録した人だけ -->
+<div id="editView" class="overlay apps-dlg" role="dialog" aria-modal="true" aria-labelledby="editTitle" hidden>
+  <div class="panel apps-panel edit-panel">
+    <h3 id="editTitle" class="menu-title">CHARACTER EDIT</h3>
+    <div class="edit-preview">
+      <span id="editFace" class="face big"></span>
+      <div class="edit-expr" role="group" aria-label="Expression">
+        <button type="button" data-expr="normal" class="selected">NORMAL</button><button type="button" data-expr="win">WIN</button><button type="button" data-expr="lose">LOSE</button>
+      </div>
+      <p id="editStatus" class="edit-status" aria-live="polite"></p>
+    </div>
+    <div class="edit-scroll">
+      <section class="edit-section"><h4>HAIR STYLE</h4><div class="edit-options" id="edHair" role="group" aria-label="Hair style"></div></section>
+      <section class="edit-section"><h4>EYES</h4><div class="edit-options" id="edEyes" role="group" aria-label="Eyes"></div></section>
+      <section class="edit-section"><h4>MOUTH</h4><div class="edit-options" id="edMouth" role="group" aria-label="Mouth"></div></section>
+      <section class="edit-section"><h4>HAIR COLOR</h4><div class="edit-options" id="edHairColor" role="group" aria-label="Hair color"></div></section>
+      <section class="edit-section"><h4>CLOTH COLOR</h4><div class="edit-options" id="edClothColor" role="group" aria-label="Cloth color"></div></section>
+      <section class="edit-section"><h4>SKIN COLOR</h4><div class="edit-options" id="edSkinColor" role="group" aria-label="Skin color"></div></section>
+    </div>
+    <button id="editBack" type="button">もどる</button>
   </div>
 </div>
 
@@ -227,12 +258,13 @@ daisuqe が保有します。著作権者の事前の書面による許可なく
   </div>
 </div>
 
-<script src="sound.js?v=20261127a"></script>
-<script src="rank-core.js?v=20261127a"></script>
-<script src="rank-client.js?v=20261127b"></script>
-<script src="game.js?v=20261128b"></script>
-<script src="live.js?v=20261127a"></script>
-<script src="rank-ui.js?v=20261127d"></script>
+<script src="sound.js?v=20261128b"></script>
+<script src="rank-core.js?v=20261128a"></script>
+<script src="face.js?v=20261128a"></script>
+<script src="rank-client.js?v=20261128a"></script>
+<script src="game.js?v=20261128k"></script>
+<script src="live.js?v=20261128a"></script>
+<script src="rank-ui.js?v=20261128a"></script>
 <script>
 /* ビルド番号：style.css の ?v= の値（更新のたびに変える版数）をそのまま出す */
 (function(){var l=document.querySelector('link[href^="style.css"]'),m=l&&/[?&]v=([^&]+)/.exec(l.getAttribute("href")),e=document.getElementById("build");if(e&&m)e.textContent="build "+m[1];})();

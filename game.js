@@ -12,9 +12,9 @@ const CFG = {
   COUNTDOWN: 2 * U,            // 試合前のカウントダウン          6秒
   TICK: U / 3,                 // 組み合いの1拍（▲が飛ぶ間隔）    1秒
   ACT_GAP: 1 * U,              // 動かす・回す指示は、この間隔で1回だけ（敵味方それぞれ）3秒
-  HIT: 10,                     // 乗られた瞬間の減り（王も同じ）
-  BASE: 10,                    // 乗った駒が、1拍ごとに乗られた駒へ与えるダメージ
-  SUP: 10,                     // 助太刀の▲1発のダメージ（味方の回復はしない）。助太刀は何体でも入れる
+  FIRST: 50,                   // 攻め入った瞬間の攻撃（敵に乗った瞬間と、助太刀のマスに入った瞬間の1発だけ。受け身の助太刀では発生しない。溜めておけない）。ふつうの攻撃は BASE・SUP（試験で決めた数字：動かない守りが強すぎるのを防ぐ）
+  BASE: 5,                     // 乗った駒が、1拍ごとに乗られた駒へ与えるダメージ
+  SUP: 5,                      // 助太刀の▲1発のダメージ（味方の回復はしない）。助太刀は何体でも入れる
   HUNT: 1.2,                   // COM：敵の王への近づき1マスぶんの点数
   SHIELD: 22,                  // COM：王の守り（助太刀）1体ぶんの点数（2体まで）
   SHOT_TIME: 0.35,             // ▲が飛んで当たるまで（見た目だけ）
@@ -112,7 +112,7 @@ function addPiece(side, type, x, y, dir) {
   if (!type) return;
   G.pieces.push({
     id: G.nextId++, side, type, x, y, dir, promoted: false, hp: 100,
-    state: 'idle', cool: 0, fx: 0, fy: 0, tx: 0, ty: 0, t: 0, dur: 0, rotD: 0,
+    state: 'idle', fresh: false, cool: 0, fx: 0, fy: 0, tx: 0, ty: 0, t: 0, dur: 0, rotD: 0,
   });
 }
 
@@ -295,10 +295,34 @@ function startRotate(p, d) {
 function cooldownFor(p) {
   return CFG.COOLDOWN;
 }
+// 動いた直後の一撃（50）が決まった所：金色の火花と大きな輪
+const GOLD = '#ffd24a';
+function firstBurst(x, y) {
+  if (G.sim) return;
+  sfx('first');
+  spawnSparks(x, y, [GOLD, '#fff3b0', '#ffffff', '#ffb020'], 34, 0.02);
+  G.rings.push({ x, y, color: GOLD, t: -0.02, max: 0.42, r: 1.05 });
+  G.rings.push({ x, y, color: '#ffffff', t: 0.06, max: 0.3, r: 0.7 });
+}
+// 動いている駒が、着いたら動いた直後の一撃（50）になるか：止まっている敵に乗る、または組み合いの助太刀に入る
+function willStrike(p) {
+  if (p.state !== 'moving') return false;
+  if (occupants(p.tx, p.ty).some(q => q.side !== p.side && q.state !== 'grappled')) return true;
+  return G.grapples.some(g => (g.atk.side === p.side || g.def.side === p.side) && canReachFrom(p, p.tx, p.ty, p.dir, g.x, g.y));
+}
+// 攻め入った瞬間の攻撃（50）が使えるか：助太刀のマスに着いてから1拍半のうちの最初の1発だけ（溜めておけない）
+const isFresh = q => !!q.fresh && G.time - (q.freshAt || 0) <= CFG.TICK * 1.5;
 function arrive(p) {
+  p.fresh = false;
   p.cool = cooldownFor(p);
   const occ = occupants(p.tx, p.ty);
-  if (occ.length === 0) { p.x = p.tx; p.y = p.ty; p.state = 'idle'; sfx('land', p.side); return; }
+  if (occ.length === 0) {
+    p.x = p.tx; p.y = p.ty; p.state = 'idle'; sfx('land', p.side);
+    // 着いた所から、すでにある組み合いの助太刀に入れるときだけ、直後の1発が強い
+    p.fresh = G.grapples.some(g => (g.atk.side === p.side || g.def.side === p.side) && canReachFrom(p, p.x, p.y, p.dir, g.x, g.y));
+    p.freshAt = G.time;
+    return;
+  }
   if (occ.length === 1 && occ[0].side !== p.side && occ[0].state !== 'grappled') {
     p.x = p.tx; p.y = p.ty;
     startGrapple(p, occ[0]);
@@ -323,13 +347,15 @@ function startGrapple(a, d) {
   a.state = 'grappled';
   d.state = 'grappled';
   sfx('clash', a.side);
-  d.hp -= CFG.HIT;
+  d.hp -= CFG.FIRST; a.fresh = false;
   // fx,fy：乗った駒がどこから来たか（攻撃の向きを描くため）
   const g = { x: d.x, y: d.y, fx: a.fx, fy: a.fy, atk: a, def: d, atkSups: [], defSups: [], tick: 0 };
   G.grapples.push(g);
   // 乗った瞬間の一撃：火花
   const pos = grapplePos(g);
   hitEffect(d, pos.dx, pos.dy, CLR.side[a.side], 1.6);
+  firstBurst(pos.dx, pos.dy);   // 動いた直後の一撃（50）：金色にはじける
+  live('first', g);
   if (d.hp <= 0) resolve(g, true);
 }
 
@@ -364,8 +390,10 @@ function fireTick(g) {
   for (const sp of g.defSups) live('strike', g, sp, g.atk);
   if (g.atkSups.length || g.defSups.length) sfx('support');
   shoot(pos.ax, pos.ay, pos.dx, pos.dy, ca, g.def, hit(g.def, CFG.BASE));
-  for (const sp of g.atkSups) shoot(sp.x + 0.5, sp.y + 0.5, pos.dx, pos.dy, ca, g.def, hit(g.def, CFG.SUP));
-  for (const sp of g.defSups) shoot(sp.x + 0.5, sp.y + 0.5, pos.ax, pos.ay, cd, g.atk, hit(g.atk, CFG.SUP));
+  // 助太刀：動いたあとの最初の1発だけ強い（FIRST）。ずっと止まっている助太刀は、ふつう（SUP）
+  const supDmg = sp => { const n = isFresh(sp) ? CFG.FIRST : CFG.SUP; sp.fresh = false; return n; };
+  for (const sp of g.atkSups) shoot(sp.x + 0.5, sp.y + 0.5, pos.dx, pos.dy, ca, g.def, hit(g.def, supDmg(sp)));
+  for (const sp of g.defSups) shoot(sp.x + 0.5, sp.y + 0.5, pos.ax, pos.ay, cd, g.atk, hit(g.atk, supDmg(sp)));
 }
 function shoot(x0, y0, x1, y1, color, target, onHit) {
   // 遠くから撃つほど高い山なりにして、味方の駒の上を越えていくのが見えるように
@@ -378,6 +406,7 @@ function damagePiece(g, p, n) {
   p.hp = Math.max(0, p.hp - n);
   sfx('hit');
   live('hit', g, p, n);
+  if (n >= CFG.FIRST) { const pos = grapplePos(g); firstBurst(isDef ? pos.dx : pos.ax, isDef ? pos.dy : pos.ay); }
   if (p.hp <= 0) resolve(g, isDef); // 乗られた駒が0なら乗った側の勝ち、乗った駒が0なら乗られた側の勝ち
 }
 // ダメージの数字（−10 なら赤、+5 なら緑）が上へ飛び出す
@@ -430,6 +459,8 @@ function capture(p, by) {
   if (G.sel === p) G.sel = null;
   addFx(p.x, p.y, '取', CLR.side[by]);
   if (p.type === 'OU') endGame(by);
+  // 王と玉だけになったら引き分け（王どうしの逃げ合いは決着がつかないため）
+  else if (!G.over && G.pieces.every(q => q.type === 'OU')) endGame(-1);
 }
 function addFx(x, y, text, color) { G.fx.push({ x, y, text, color, t: 0 }); }
 
@@ -550,6 +581,20 @@ function updateGrapples(dt) {
 //  盤の「いまの形」を、危ない駒・狙える駒・組み合いの形勢で点数にして、
 //  次の1手（動かす・回す・何もしない）を、点数がいちばん上がるものから選ぶ。
 //  1手は3秒に1回しか出せないので、点数が上がらないときは手を出さずに待つ。
+// 組み合いの見積もり：乗った駒（攻め）と乗られた駒（守り）のどちらが先に倒れるか（拍の数）。
+// 動いた直後の一撃（FIRST）は、乗る瞬間と、動いて助太刀に入った直後の1発だけ
+const supBurst = list => list.reduce((s, q) => s + (isFresh(q) ? CFG.FIRST - CFG.SUP : 0), 0);
+function fightEst(atkHp, defHp, nAS, burstAS, nDS, burstDS, arrival) {
+  const tDef = Math.ceil(Math.max(0, defHp - (arrival ? CFG.FIRST : 0) - burstAS) / (CFG.BASE + CFG.SUP * nAS)) || 0;
+  const tAtk = nDS > 0 ? Math.ceil(Math.max(0, atkHp - burstDS) / (CFG.SUP * nDS)) : Infinity;
+  return { tDef, tAtk, atkWins: tDef <= tAtk };
+}
+// 攻めが勝つ度合い 0〜1（拍の数の比がきわどいときは、あいだの値）
+function winShare(est) {
+  if (est.tAtk === Infinity) return 1;
+  const r = est.tAtk / Math.max(1, est.tDef);
+  return r >= 1.2 ? 1 : r <= 0.8 ? 0 : (r - 0.8) / 0.4;
+}
 function cpuThink(S = 1, dk = G.diff, sync = false) {
   const D = DIFF[dk];
   if (!slotReady(S)) return; // 次の指示を出せるまで待つ
@@ -560,6 +605,9 @@ function cpuThink(S = 1, dk = G.diff, sync = false) {
   const sty = G.style && G.style[S];
   const sm = k => 0.5 + (sty && typeof sty[k] === 'number' ? sty[k] : 0.5);
   const mine = G.pieces.filter(p => p.side === S);
+  // 王のほかに残っている駒の数。少なくなったら、王も攻めに加わる（王どうしの逃げ合いで終わらないように）
+  const others = mine.filter(p => p.type !== 'OU').length;
+  const kingJoins = others <= 2;
   const readyP = p => p.state === 'idle' && !(p.cool > 0);
   const V = p => p.type === 'OU' ? 120 : (VALUE[p.type] + (p.promoted ? 2 : 0)) * 3;
   const key = (x, y) => x * 16 + y;
@@ -585,12 +633,10 @@ function cpuThink(S = 1, dk = G.diff, sync = false) {
 
   // 組み合いの形勢（その軍から見た点数）：助太刀の数で、どちらが先に倒れるかを見積もる
   const grappleScore = g => {
-    const nAS = supporters(g.atk.side, g.x, g.y, g.atk).length;
-    const nDS = supporters(g.def.side, g.x, g.y, g.def).length;
-    const tDef = Math.ceil(g.def.hp / (CFG.BASE + CFG.SUP * nAS));
-    const tAtk = nDS > 0 ? Math.ceil(g.atk.hp / (CFG.SUP * nDS)) : Infinity;
-    const atkWins = tDef <= tAtk;
-    const dmg = atkWins ? Math.min(1, (tDef * CFG.SUP * nDS) / Math.max(1, g.atk.hp)) : 1;
+    const lAS = supporters(g.atk.side, g.x, g.y, g.atk), lDS = supporters(g.def.side, g.x, g.y, g.def);
+    const nAS = lAS.length, nDS = lDS.length, bDS = supBurst(lDS);
+    const { tDef, tAtk, atkWins } = fightEst(g.atk.hp, g.def.hp, nAS, supBurst(lAS), nDS, bDS, false);
+    const dmg = atkWins ? Math.min(1, (tDef * CFG.SUP * nDS + bDS) / Math.max(1, g.atk.hp)) : 1;
     const gainAtk = atkWins ? V(g.def) - V(g.atk) * dmg * 0.6 : -V(g.atk);
     return g.atk.side === S ? gainAtk : -gainAtk;
   };
@@ -604,21 +650,24 @@ function cpuThink(S = 1, dk = G.diff, sync = false) {
       const k = key(p.x, p.y);
       const att = amap.get(k) || 0, inc = incoming.get(k) || 0;
       if (att + inc === 0) continue;
-      const sup = supporters(S, p.x, p.y, p).length;
-      const lose = sup >= 2 ? 0 : sup === 1 ? 0.5 : 1;
+      // 敵が乗ってきたら、先に倒れるのはどちらか（助太刀の数と、動いてきたばかりの助太刀の強い最初の1発も見る）
+      const mS = supporters(S, p.x, p.y, p), eS = supporters(O, p.x, p.y, null);
+      const eBurst = Math.max(0, supBurst(eS) - (eS.some(q => q.fresh) ? CFG.FIRST - CFG.SUP : 0));   // 乗る駒じたいの分は引く
+      const lose = winShare(fightEst(100, p.hp, Math.max(0, eS.length - 1), eBurst, mS.length, supBurst(mS), true));
       risk += V(p) * lose * (inc > 0 ? 1 : 0.45) * (1 + (100 - p.hp) / 70);
     }
     // 守りの薄い敵の駒を、いま攻められるか
     for (const e of G.pieces) {
       if (e.side !== O || e.state === 'grappled' || e.state === 'moving') continue;
-      let can = false;
+      let can = null;
       for (const m of mine) {
         if (!readyP(m) && !(m.state === 'idle' && m.cool < CFG.MOVE_TIME)) continue;
-        if (legalTargets(m).some(t => t.cap && t.x === e.x && t.y === e.y)) { can = true; break; }
+        if (legalTargets(m).some(t => t.cap && t.x === e.x && t.y === e.y)) { can = m; break; }
       }
       if (!can) continue;
-      const es = supporters(O, e.x, e.y, e).length;
-      opp += V(e) * (es === 0 ? 1 : es === 1 ? 0.3 : 0) * (1 + (100 - e.hp) / 150);
+      const aL = supporters(S, e.x, e.y, can), dL = supporters(O, e.x, e.y, e);
+      const share = winShare(fightEst(can.hp, e.hp, aL.length, supBurst(aL), dL.length, supBurst(dL), true));
+      opp += V(e) * share * (1 + (100 - e.hp) / 150);
     }
     for (const g of G.grapples) if (g.atk.side === S || g.def.side === S) grap += grappleScore(g);
     // 王のまわりの守り：助太刀が2体いれば、乗られても返り討ちにできる。ふだんから形を作っておく
@@ -630,7 +679,7 @@ function cpuThink(S = 1, dk = G.diff, sync = false) {
     if (ek) {
       let dmin = 99;
       for (const p of mine) {
-        if (p.type === 'OU' || p.hp < 40 || p.state === 'grappled') continue;
+        if ((p.type === 'OU' && others > 1) || p.hp < 40 || p.state === 'grappled') continue;
         dmin = Math.min(dmin, Math.max(Math.abs(p.x - ek.x), Math.abs(p.y - ek.y)));
       }
       if (dmin < 99) hunt = -CFG.HUNT * sm('aggr') * dmin;
@@ -646,9 +695,9 @@ function cpuThink(S = 1, dk = G.diff, sync = false) {
   // そこで「動いている間の形」と「着いたあとの形」の2つを見て、平均で点数をつける
   for (const p of mine) {
     if (!readyP(p) && !(p.state === 'grappled' && G.grapples.some(g => g.atk === p) && !(p.cool > 0))) continue;
-    const sx = p.x, sy = p.y, sst = p.state, sd = p.dir, spr = p.promoted;
-    const sv = { fx: p.fx, fy: p.fy, tx: p.tx, ty: p.ty, t: p.t, dur: p.dur };
-    const restore = () => { p.x = sx; p.y = sy; p.state = sst; p.dir = sd; p.promoted = spr; Object.assign(p, sv); };
+    const sx = p.x, sy = p.y, sst = p.state, sd = p.dir, spr = p.promoted, sfr = p.fresh;
+    const sv = { fx: p.fx, fy: p.fy, tx: p.tx, ty: p.ty, t: p.t, dur: p.dur, freshAt: p.freshAt };
+    const restore = () => { p.x = sx; p.y = sy; p.state = sst; p.dir = sd; p.promoted = spr; p.fresh = sfr; Object.assign(p, sv); };
     // 動かす手
     for (const o of legalTargets(p)) {
       // 飛んでいる間：その駒は、狙われないが、助太刀もできない
@@ -658,19 +707,18 @@ function cpuThink(S = 1, dk = G.diff, sync = false) {
       if (o.cap) {
         // 乗る：着いたあとの組み合いの形勢を見積もる
         const e = o.cap;
-        const atkSup = supporters(S, o.x, o.y, p).length, defSup = supporters(O, o.x, o.y, e).length;
-        const tDef = Math.ceil(Math.max(0, e.hp - CFG.HIT) / (CFG.BASE + CFG.SUP * atkSup)) || 0;
-        const tAtk = defSup > 0 ? Math.ceil(p.hp / (CFG.SUP * defSup)) : Infinity;
-        const win = tDef <= tAtk;
-        const dmg = win ? Math.min(1, (tDef * CFG.SUP * defSup) / Math.max(1, p.hp)) : 1;
+        const aL = supporters(S, o.x, o.y, p), dL = supporters(O, o.x, o.y, e);
+        const defSup = dL.length, bD = supBurst(dL);
+        const { tDef, win } = (est => ({ tDef: est.tDef, win: est.atkWins }))(fightEst(p.hp, e.hp, aL.length, supBurst(aL), defSup, bD, true));
+        const dmg = win ? Math.min(1, (tDef * CFG.SUP * defSup + bD) / Math.max(1, p.hp)) : 1;
         imm = win ? V(e) * (e.type === 'OU' ? 8 : 1) - V(p) * dmg * 0.6 : -V(p);
         imm += (sm('aggr') - 1) * 10; // 攻撃的な人は、乗る手を好む
-        if (p.type === 'OU') imm -= 40; // 王で攻めるのは最後の手段
+        if (p.type === 'OU') imm -= others === 0 ? 0 : kingJoins ? 15 : 40; // 王で攻めるのは最後の手段（駒が少なくなったら、ためらいを減らす）
         p.x = o.x; p.y = o.y; p.state = 'grappled'; const es = e.state; e.state = 'grappled';
         eArr = evaluate();
         e.state = es;
       } else {
-        p.state = 'idle'; p.x = o.x; p.y = o.y;
+        p.state = 'idle'; p.x = o.x; p.y = o.y; p.fresh = helpsAt(p, o.x, o.y); p.freshAt = G.time;   // 助太刀に入るなら、直後の1発が強い
         eArr = evaluate() + 0.4 * sm('aggr') * Math.max(0, (o.y - sy) * fwd);
         if (helpsAt(p, o.x, o.y)) imm += (sm('support') - 1) * 8; // 助太刀に入る人は、助太刀になる手を好む
       }
@@ -802,10 +850,8 @@ function rollPolicy(S) {
   for (const p of mine) for (const o of legalTargets(p)) {
     if (!o.cap) continue;
     const e = o.cap;
-    const aS = supporters(S, o.x, o.y, p).length, dS = supporters(O, o.x, o.y, e).length;
-    const tD = Math.ceil(Math.max(0, e.hp - CFG.HIT) / (CFG.BASE + CFG.SUP * aS)) || 0;
-    const tA = dS > 0 ? Math.ceil(p.hp / (CFG.SUP * dS)) : Infinity;
-    if (tD > tA) continue; // 負ける所へは攻めない
+    const aL = supporters(S, o.x, o.y, p), dL = supporters(O, o.x, o.y, e);
+    if (!fightEst(p.hp, e.hp, aL.length, supBurst(aL), dL.length, supBurst(dL), true).atkWins) continue; // 負ける所へは攻めない
     const s = (e.type === 'OU' ? 1000 : VALUE[e.type]) - VALUE[p.type] * 0.3 + Math.random();
     if (s > bs) { bs = s; best = [p, o]; }
   }
@@ -814,7 +860,8 @@ function rollPolicy(S) {
   if (pr.length && Math.random() < 0.6) { startPromote(pr[Math.floor(Math.random() * pr.length)]); return; }
   if (Math.random() < 0.5) return;
   const adv = [];
-  for (const p of mine) { if (p.type === 'OU') continue; for (const o of legalTargets(p)) if (!o.cap && (o.y - p.y) * fwd >= 0) adv.push([p, o]); }
+  const fewLeft = G.pieces.filter(q => q.side === S && q.type !== 'OU').length <= 2;
+  for (const p of mine) { if (p.type === 'OU' && !fewLeft) continue; for (const o of legalTargets(p)) if (!o.cap && (o.y - p.y) * fwd >= 0) adv.push([p, o]); }
   if (adv.length) { const [p, o] = adv[Math.floor(Math.random() * adv.length)]; startMove(p, o); }
 }
 function rolloutValue(S) {
@@ -1111,6 +1158,16 @@ function drawHpBar(cx, y, value, side) {
   ctx.fillText(v, x + w + 5, y + h / 2 + 1);
   ctx.restore();
 }
+// 動いた直後の一撃を持つ駒のまわり：金色の輪が脈打つ
+function drawGoldAura(px, py) {
+  const k = pulse(10);
+  ctx.save();
+  ctx.strokeStyle = GOLD; ctx.lineWidth = 3 + 2 * k;
+  ctx.shadowColor = GOLD; ctx.shadowBlur = cs * 0.35;
+  ctx.globalAlpha = 0.65 + 0.35 * k;
+  ctx.beginPath(); ctx.arc(px, py, cs * (0.5 + 0.04 * k), 0, Math.PI * 2); ctx.stroke();
+  ctx.restore();
+}
 function drawRing(px, py, frac, color) {
   ctx.beginPath();
   ctx.arc(px, py, cs * 0.47, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac);
@@ -1284,8 +1341,10 @@ function draw() {
     const isSel = p === sel;
     // 選んだ駒は少し浮かせて光らせる。回転中・成り中の駒は明るく（そのあいだ、休みのゲージは出さない）
     const acting = p.state !== 'idle';
-    drawPiece(p, px, py - (isSel ? cs * 0.08 : 0), ang, isSel ? 1.06 : 1, 1, isSel ? CLR.sel : null, acting);
-    if (p.cool > 0 && !acting) drawRing(px, py, p.cool / (cooldownFor(p) || 1), 'rgba(230,240,250,0.95)');
+    const fr = isFresh(p);   // 動いた直後の一撃を持っている：金色に光る
+    drawPiece(p, px, py - (isSel ? cs * 0.08 : 0), ang, isSel ? 1.06 : 1, 1, isSel ? CLR.sel : fr ? GOLD : null, acting || fr);
+    if (fr) drawGoldAura(px, py);
+    if (p.cool > 0 && !acting && !fr) drawRing(px, py, p.cool / (cooldownFor(p) || 1), 'rgba(230,240,250,0.95)');
     drawSmallHp(p, px, py);
   }
 
@@ -1341,7 +1400,9 @@ function draw() {
     const lift = p.type === 'KE' && !p.promoted ? 0.3 * Math.sin(Math.PI * f) : 0.08;
     ctx.fillStyle = 'rgba(63,220,120,0.12)';
     ctx.beginPath(); ctx.ellipse(px, py + cs * 0.3, cs * 0.3, cs * 0.1, 0, 0, Math.PI * 2); ctx.fill();
-    drawPiece(p, px, py - lift * cs * 0.5, p.dir * Math.PI / 2, 1 + lift, 0.95, null, true);
+    const ws = willStrike(p);   // 着いたら一撃（50）になる駒は、金色に光る
+    drawPiece(p, px, py - lift * cs * 0.5, p.dir * Math.PI / 2, 1 + lift, 0.95, ws ? GOLD : null, true);
+    if (ws) drawGoldAura(px, py - lift * cs * 0.5);
     drawSmallHp(p, px, py);
   }
 
@@ -1492,7 +1553,7 @@ function updateHud() {
   const caps = side => G.captured[side].map(t => LABEL[t]).join('') || '—';
   const sel = G.sel && G.pieces.includes(G.sel) ? G.sel : null;
   const myGrapple = G.grapples.some(g => g.atk.side === 0 || g.def.side === 0);
-  let hint = G.watch ? (G.over && G.overAt ? `${G.winner === 0 ? '青' : '赤'}の勝ち。次の対戦まで ${Math.max(1, Math.ceil(WATCH_NEXT - (performance.now() - G.overAt) / 1000))}秒` : 'COM対戦を観戦中')
+  let hint = G.watch ? (G.over && G.overAt ? `${G.winner < 0 ? '引き分け' : (G.winner === 0 ? '青' : '赤') + 'の勝ち'}。次の対戦まで ${Math.max(1, Math.ceil(WATCH_NEXT - (performance.now() - G.overAt) / 1000))}秒` : 'COM対戦を観戦中')
     : myGrapple ? '組み合い中! 隣のマスに、そこへ動ける向きの駒を置くと助太刀になります'
     : '自分の駒（青）を選んでください';
   if (sel && !G.watch) {
@@ -1625,6 +1686,15 @@ function startGame(diff, watch = false, rank = null, pair = null) {
   $('whoYou').textContent = pair ? who(pair[0]) : watch ? '青COM' : (rank && rank.myName) || 'あなた';
   $('whoCpu').textContent = pair ? who(pair[1]) : watch ? '赤COM' : rank ? `${rank.name}（${rank.rankLabel}）` : 'COM';
   document.querySelector('.controls').style.display = watch ? 'none' : '';
+  // 顔：ランキング戦は、あなたと相手。ランキングの2人の観戦は、その2人。フリー対戦は出さない
+  if (typeof FACE !== 'undefined') {
+    const fy = $('faceYou'), fc = $('faceCpu');
+    const you = pair ? FACE.of(pair[0]) : rank ? FACE.mine(rank.myName || 'YOU') : null;
+    const cpu = pair ? FACE.of(pair[1]) : rank ? FACE.of({ name: rank.name, avatar: rank.avatar }) : null;
+    fy.hidden = !you; fc.hidden = !cpu;
+    if (you) FACE.paint(fy, you);
+    if (cpu) FACE.paint(fc, cpu);
+  }
   document.documentElement.classList.toggle('watch', !!watch);
   hudCache = '';
 }
@@ -1634,10 +1704,11 @@ function endGame(winner) {
   G.winner = winner;
   if (G.sim) return; // 先読みの試し打ちでは、画面に触らない
   SND.bgmStop();
-  sfx(G.watch || winner === 0 ? 'win' : 'lose');
+  sfx(winner < 0 ? 'draw' : G.watch || winner === 0 ? 'win' : 'lose');
   const m = Math.floor(G.realTime / 60), s = Math.floor(G.realTime % 60);
   // COM対戦では「青の勝ち」「赤の勝ち」。青は青、赤は赤で表示する
-  if (G.watch) $('resultTitle').innerHTML = winner === 0 ? '<span class="c-blue">青</span>の勝ち' : '<span class="c-red">赤</span>の勝ち';
+  if (winner < 0) $('resultTitle').textContent = '引き分け';
+  else if (G.watch) $('resultTitle').innerHTML = winner === 0 ? '<span class="c-blue">青</span>の勝ち' : '<span class="c-red">赤</span>の勝ち';
   else $('resultTitle').textContent = winner === 0 ? '勝ち' : '負け';
   $('resultTime').textContent = `${m}分${String(s).padStart(2, '0')}秒`;
   if (G.watch) {
@@ -1650,6 +1721,13 @@ function endGame(winner) {
       if (performance.now() - game.overAt >= WATCH_NEXT * 1000) startWatch(); else setTimeout(next, 200);
     };
     setTimeout(next, 200);
+    return;
+  }
+  if (G.rank && winner < 0) {
+    // ランキング戦の引き分け：ランキングには入れない（順位もレーティングも変わらない）
+    $('resultRank').textContent = '引き分けは、ランキングに入りません';
+    $('resultRank').hidden = false;
+    setTimeout(() => { if (G && G.over) $('result').hidden = false; }, 900);
     return;
   }
   if (G.rank) {
@@ -1685,11 +1763,25 @@ $('freeBack').addEventListener('click', closeFree);
 $('freeView').addEventListener('click', e => { if (e.target === $('freeView')) closeFree(); });
 document.querySelectorAll('#freeView [data-diff]').forEach(b => b.addEventListener('click', closeFree));
 // 秒数（3・6・9）：選ぶとルール説明の秒数も変わる。覚えておく
+// 設定の4つめのボタン：押すと、右クリックメニューのような小さなメニューで 3秒・6秒・9秒 を選ぶ
 function showSec() {
-  document.querySelectorAll('[data-sec]').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.sec === SETTINGS.sec)));
+  document.querySelectorAll('[data-sec]').forEach(b => b.setAttribute('aria-checked', String(+b.dataset.sec === SETTINGS.sec)));
+  $('setSec').textContent = `${SETTINGS.sec}秒`;
   fillRuleNumbers();
 }
-document.querySelectorAll('[data-sec]').forEach(b => b.addEventListener('click', () => { SETTINGS.sec = +b.dataset.sec; saveSettings(); showSec(); }));
+const secMenu = $('secMenu');
+function openSecMenu(open) {
+  secMenu.hidden = !open;
+  $('setSec').setAttribute('aria-expanded', String(open));
+  if (open) (secMenu.querySelector('[aria-checked="true"]') || secMenu.querySelector('button')).focus();
+}
+$('setSec').addEventListener('click', e => { e.stopPropagation(); openSecMenu(secMenu.hidden); });
+document.querySelectorAll('[data-sec]').forEach(b => b.addEventListener('click', e => {
+  e.stopPropagation();
+  SETTINGS.sec = +b.dataset.sec; saveSettings(); showSec(); openSecMenu(false); $('setSec').focus();
+}));
+document.addEventListener('click', e => { if (!secMenu.hidden && !secMenu.contains(e.target)) openSecMenu(false); });   // 外を押したら閉じる
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !secMenu.hidden) { openSecMenu(false); $('setSec').focus(); } });
 showSec();
 $('again').addEventListener('click', () => { $('result').hidden = true; $('overlay').hidden = false; });
 

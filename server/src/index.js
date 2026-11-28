@@ -28,7 +28,7 @@ async function sha256(text) {
 const newNonce = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('');
 
 // ----- 保存 -----
-const rowOf = r => ({ name: r.name, rating: r.rating, games: r.games, wins: r.wins, losses: r.losses, isCom: r.kind === 'com', params: r.params ? JSON.parse(r.params) : RC.neutralStyle() });
+const rowOf = r => ({ name: r.name, rating: r.rating, games: r.games, wins: r.wins, losses: r.losses, isCom: r.kind === 'com', params: r.params ? JSON.parse(r.params) : RC.neutralStyle(), avatar: r.avatar ? JSON.parse(r.avatar) : null });
 
 async function seedComs(env) {
   const { results } = await env.DB.prepare("SELECT COUNT(*) AS n FROM entries WHERE kind='com'").all();
@@ -40,16 +40,16 @@ async function seedComs(env) {
 }
 async function loadAll(env) {
   await seedComs(env);
-  const { results } = await env.DB.prepare('SELECT name, kind, rating, games, wins, losses, params FROM entries').all();
+  const { results } = await env.DB.prepare('SELECT name, kind, rating, games, wins, losses, params, avatar FROM entries').all();
   const all = results.map(rowOf);
   return { users: all.filter(r => !r.isCom), coms: all.filter(r => r.isCom) };
 }
 const standingsOf = ({ users, coms }) => RC.standings(users, coms);
-const pub = r => ({ name: r.name, rank: r.rank, rating: Math.round(r.rating), isCom: !!r.isCom, params: r.params || RC.neutralStyle() });
+const pub = r => ({ name: r.name, rank: r.rank, rating: Math.round(r.rating), isCom: !!r.isCom, params: r.params || RC.neutralStyle(), avatar: r.avatar || null });   // avatar：ユーザーの顔（COM は null。顔はゲーム側で名前から作る）
 
 async function authUser(env, name, token) {
   if (!RC.validName(name) || typeof token !== 'string' || token.length < 16 || token.length > 128) return null;
-  const row = await env.DB.prepare("SELECT name, rating, games, wins, losses, params, token_hash FROM entries WHERE name=?1 AND kind='user'").bind(name).first();
+  const row = await env.DB.prepare("SELECT name, rating, games, wins, losses, params, avatar, token_hash FROM entries WHERE name=?1 AND kind='user'").bind(name).first();
   if (!row || row.token_hash !== await sha256(token)) return null;
   return row;
 }
@@ -94,7 +94,7 @@ async function handle(request, env) {
     if (!u) return json({ registered: false });
     const rows = standingsOf(await loadAll(env));
     const r = rows.find(x => x.name === u.name);
-    return json({ registered: true, name: u.name, rank: r ? r.rank : 101, rating: Math.round(u.rating), inRanking: !!r });
+    return json({ registered: true, name: u.name, rank: r ? r.rank : 101, rating: Math.round(u.rating), inRanking: !!r, avatar: u.avatar ? JSON.parse(u.avatar) : null });
   }
 
   if (path === '/api/opponent' && request.method === 'POST') {
@@ -132,10 +132,22 @@ async function handle(request, env) {
     const pv = RC.previewEntry(all.users, all.coms, rating);
     if (pv.registered) {
       const t = now();
-      await env.DB.prepare("INSERT INTO entries (name, kind, rating, games, wins, losses, params, token_hash, created_at, updated_at) VALUES (?1, 'user', ?2, 1, ?3, ?4, NULL, ?5, ?6, ?6)")
-        .bind(name, rating, result, 1 - result, await sha256(body.token), t).run();
+      const av = RC.cleanAvatar(body.avatar);   // 登録のときの顔（キャラクターエディットで決めたもの）
+      await env.DB.prepare("INSERT INTO entries (name, kind, rating, games, wins, losses, params, avatar, token_hash, created_at, updated_at) VALUES (?1, 'user', ?2, 1, ?3, ?4, NULL, ?5, ?6, ?7, ?7)")
+        .bind(name, rating, result, 1 - result, av ? JSON.stringify(av) : null, await sha256(body.token), t).run();
     }
     return json({ ok: true, registered: pv.registered, rank: pv.rank });
+  }
+
+  // 顔を登録しなおす（キャラクターエディットで変えたとき）。名前の持ち主だけ
+  if (path === '/api/avatar' && request.method === 'POST') {
+    const u = await authUser(env, body.name, body.token);
+    if (!u) return json({ ok: false, error: 'auth' }, 401);
+    const av = RC.cleanAvatar(body.avatar);
+    if (!av) return json({ ok: false, error: 'bad-avatar' }, 400);
+    if (!await rateLimit(env, 'av:' + u.name, 60, 3600)) return json({ ok: false, error: 'しばらくしてからもう一度' }, 429);
+    await env.DB.prepare('UPDATE entries SET avatar=?2, updated_at=?3 WHERE name=?1').bind(u.name, JSON.stringify(av), now()).run();
+    return json({ ok: true, avatar: av });
   }
 
   if (path === '/api/result' && request.method === 'POST') {
