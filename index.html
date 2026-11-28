@@ -25,7 +25,7 @@
 <link rel="stylesheet" href="font.css?v=20261125b">
 <link rel="stylesheet" href="font-misaki.css?v=20261127a">
 <link rel="stylesheet" href="font-yodaka.css?v=20261128a">
-<link rel="stylesheet" href="style.css?v=20261128n">
+<link rel="stylesheet" href="style.css?v=20261129a">
 </head>
 <body>
 <main>
@@ -35,21 +35,21 @@
   <div class="hud cpu">
     <span id="faceCpu" class="face hud-face" hidden></span>
     <span class="who" id="whoCpu">COM</span>
-    <span class="label">次の手</span><span id="handsCpu" class="hands"></span>
-    <span class="label">取った駒</span><span id="capsCpu" class="caps"></span>
+    <span class="label">次の手まで</span><span id="handsCpu" class="hands"></span>
   </div>
 
   <div class="boardwrap">
     <canvas id="board"></canvas>
     <div id="toast" class="toast"></div>
     <div id="count" class="count"></div>
+    <!-- 観戦：勝った人の名前を、次の試合までの間だけ大きく出す -->
+    <div id="winBanner" class="win-banner" hidden></div>
   </div>
 
   <div class="hud you">
     <span id="faceYou" class="face hud-face" hidden></span>
     <span class="who" id="whoYou">あなた</span>
-    <span class="label">次の手</span><span id="handsYou" class="hands"></span>
-    <span class="label">取った駒</span><span id="capsYou" class="caps"></span>
+    <span class="label">次の手まで</span><span id="handsYou" class="hands"></span>
   </div>
 
   <div class="controls">
@@ -150,6 +150,10 @@ daisuqe が保有します。著作権者の事前の書面による許可なく
     <button id="menuBgm" type="button"></button>
     <button id="menuSe" type="button"></button>
     <button id="menuChara" type="button"></button>
+    <!-- 試合の速さ：1動作の秒数（3・6・9）。試合の途中でも変えられる。ランキングの点数には関係しない -->
+    <div class="menu-secs" role="group" aria-label="試合の速さ">
+      <button type="button" data-msec="3">3秒</button><button type="button" data-msec="6">6秒</button><button type="button" data-msec="9">9秒</button>
+    </div>
     <button id="menuTop" type="button">トップに戻る</button>
   </div>
 </div>
@@ -260,10 +264,10 @@ daisuqe が保有します。著作権者の事前の書面による許可なく
 
 <script src="sound.js?v=20261128b"></script>
 <script src="rank-core.js?v=20261128a"></script>
-<script src="face.js?v=20261128a"></script>
+<script src="face.js?v=20261128b"></script>
 <script src="rank-client.js?v=20261128a"></script>
-<script src="game.js?v=20261128k"></script>
-<script src="live.js?v=20261128a"></script>
+<script src="game.js?v=20261129b"></script>
+<script src="live.js?v=20261128e"></script>
 <script src="rank-ui.js?v=20261128a"></script>
 <script>
 /* ビルド番号：style.css の ?v= の値（更新のたびに変える版数）をそのまま出す */

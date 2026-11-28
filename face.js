@@ -69,6 +69,25 @@ const FACE = (() => {
     if (!normal) f.src = `face/${expr}.png`;
     el.querySelector('.f-tear').hidden = true;
   }
+  // 顔の形にだけ、半透明の色を重ねる（どの色の顔でも同じ濃さでかぶる）。目や口の絵が読み込まれたら描き直す
+  function tint(el, color) {
+    if (!el) return;
+    let c = el.querySelector('canvas.f-tint');
+    if (!c) { c = document.createElement('canvas'); c.className = 'f-tint'; c.width = c.height = 16; el.append(c); }
+    const x = c.getContext('2d');
+    const redraw = () => {
+      x.globalCompositeOperation = 'source-over';
+      x.clearRect(0, 0, 16, 16);
+      for (const l of el.querySelectorAll('canvas[data-k], img')) {
+        if (l.hidden || (l.tagName === 'IMG' && !(l.complete && l.naturalWidth))) continue;
+        x.drawImage(l, 0, 0, 16, 16);
+      }
+      x.globalCompositeOperation = 'source-in';
+      x.fillStyle = color; x.fillRect(0, 0, 16, 16);
+    };
+    redraw();
+    for (const im of el.querySelectorAll('img')) if (!im.complete) im.addEventListener('load', redraw, { once: true });
+  }
   const make = (av, cls = '') => { const s = document.createElement('span'); s.className = 'face ' + cls; return paint(s, av); };
-  return { XW, sanitize, forName, of, mine, saveMine, hasMine, paint, make, paintMask };
+  return { XW, sanitize, forName, of, mine, saveMine, hasMine, paint, make, paintMask, tint };
 })();

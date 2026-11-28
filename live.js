@@ -360,8 +360,8 @@ const LIVE = (() => {
     // 助太刀：後ろに小さく並べる
     const sup = (list, isL) => {
       const arr = cur.end ? [] : list.slice(0, 3);
-      // 助太刀の大きさは、組み合っている2人と、ふつうの助太刀（0.34）の間。戦っている2人とはあまり重ねない
-      const SUP_K = 0.47 * 160 * u / 148, FIGHT_K = 100 * u / 148;
+      // 助太刀も、組み合っている2人と同じ大きさ（100%）。戦っている2人とはあまり重ねない
+      const FIGHT_K = 100 * u / 148, SUP_K = FIGHT_K;
       const fighter = isL ? L : R, fi = img(baseName(fighter), 'idle');
       const fw = (fi.naturalWidth || 100) * FIGHT_K * sizeOf(fighter);
       const out = isL ? -1 : 1;
@@ -371,19 +371,19 @@ const LIVE = (() => {
         if (!cur.seen.has(p)) cur.seen.set(p, tn);
         const age = tn - cur.seen.get(p);
         const struck = tn - (p._ls || -9) < 0.35;
-        const k = SUP_K * sizeOf(p) * (struck ? 1.08 : 1);
+        const k = SUP_K * sizeOf(p);   // 撃つときも大きさは変えない（ぽよんと跳ねて見えないように）
         const im = img(baseName(p), 'idle');
         const w = (im.naturalWidth || 100) * k;
         // 外側へ並べる：となりと少しだけ重ねる（戦っている駒とは、ほぼ重ねない）
         let x = edge + out * w * 0.45 + out * (1 - Math.min(1, age / 0.3)) * 30 * u;
-        edge += out * w * 0.8;
+        edge += out * w * 0.6;   // 同じ大きさなので、となりとは少し多めに重ねて収める
         x = Math.max(w / 2, Math.min(W - w / 2, x));
         lastX = x;
         const y = H - (12 + (i % 2) * 7) * u;
-        drawSprite(p, struck ? 'attack-2' : 'idle', x, y, k, isL ? 1 : -1, 0.92, COL[p.side]);
+        drawSprite(p, struck ? 'attack-2' : 'attack-1', x, y, k, isL ? 1 : -1, 0.92, COL[p.side]);
         // 「助」の札（現れた直後は大きく弾む）
         const pop = Math.max(0, 1 - age / 0.35);
-        text('助', x, y - 77 * u * 0.77 - 8 * u - pop * 6 * u, Math.round((11 + pop * 7) * u), '#3ee08f', 'center');
+        text('助', x, y - (im.naturalHeight || 148) * k - 6 * u - pop * 6 * u, Math.round((11 + pop * 7) * u), '#3ee08f', 'center');
       });
       if (!cur.end && list.length > 3) text('+' + (list.length - 3), Math.max(16 * u, Math.min(W - 16 * u, lastX + out * 30 * u)), H - 82 * u, 16, '#3ee08f', 'center', MISAKI);
     };
@@ -409,7 +409,7 @@ const LIVE = (() => {
         pose = sinceStrike < 0.6 ? 'attack-2' : 'attack-1';
         if (sinceStrike < 0.5) dx = (isL ? 1 : -1) * Math.sin(Math.PI * Math.min(1, sinceStrike / 0.5)) * 12 * u;   // 踏み込む
       } else pose = 'defense-2';
-      const breath = cur.end && !cur.end.retreat && p !== cur.end.loser ? -Math.abs(Math.sin(ts * 5)) * 5 * u : 0;
+      const breath = 0;   // 勝ったあとも跳ねない（ユーザーの意向）
       const k = 100 * u / 148 * sizeOf(p);
       drawSprite(p, pose, pos.x + dx, pos.y + breath, k, isL ? 1 : -1, 1, COL[p.side], white);
     };

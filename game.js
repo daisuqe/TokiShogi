@@ -454,6 +454,7 @@ function resolve(g, atkWins) {
 }
 function capture(p, by) {
   G.pieces = G.pieces.filter(q => q !== p);
+  if (!G.sim) (G.ghosts = G.ghosts || []).push({ p, x: p.x, y: p.y, t: 0 });   // キャラのとき：やられた姿（ko）を少しのあいだ残す
   G.captured[by].push(p.type);
   sfx('ko');
   if (G.sel === p) G.sel = null;
@@ -531,6 +532,7 @@ function update(realDt) {
   G.rings = G.rings.filter(r => r.t < r.max);
   for (const p of G.pieces) if (p.flash > 0) p.flash = Math.max(0, p.flash - realDt * 3.5);
   for (const pp of G.pops) pp.t += realDt;
+  if (G.ghosts) { for (const gh of G.ghosts) gh.t += realDt; G.ghosts = G.ghosts.filter(gh => gh.t < 1.3); }
   G.pops = G.pops.filter(pp => pp.t < 1.0);
 
   // COM対戦では青（下）もCOMが動かす
@@ -1018,6 +1020,54 @@ const pulse = (speed = 4) => 0.5 + 0.5 * Math.sin(performance.now() / 1000 * spe
 // 暗い色と明るい色の中間を、少し白寄りにした色（光らせはしない）
 const TOP_BRIGHT = ['#2f6fe6', '#e03a50'];
 const EDGE_BRIGHT = ['#5b9aff', '#ff6070'];
+// 設定の CHARA：駒の代わりにキャラだけを描く。足元の真ん中に駒の文字（青寄り・赤寄りの白）。
+// ふつうの向き（青は上、赤は下）以外を向いていたら、文字の後ろに向きの矢印
+const CHAR_TEXT = ['#e2ebff', '#ffe3e3'];
+const charMode = () => SETTINGS.chara && typeof LIVE !== 'undefined';
+function drawUnit(p, px, py, ang, scale, alpha = 1, glow = null, bright = false, pose = 'idle', face = 0, labelX = null) {
+  if (!charMode()) { drawPiece(p, px, py, ang, scale, alpha, glow, bright); return; }
+  const h = cs * 1.15 * scale, bottom = py + cs * 0.36;
+  ctx.save();
+  if (glow) { ctx.shadowColor = glow; ctx.shadowBlur = cs * 0.3; }
+  LIVE.figure(ctx, p, pose, px, bottom, h, face || (p.side === 0 ? 1 : -1), alpha, true);
+  ctx.restore();
+  if (p.flash > 0) {   // 当たった瞬間：白く光る
+    ctx.save(); ctx.globalAlpha = Math.min(1, p.flash); ctx.fillStyle = '#ffffff'; ctx.shadowColor = '#ffffff'; ctx.shadowBlur = cs * 0.5;
+    ctx.beginPath(); ctx.arc(px, bottom - h * 0.45, cs * 0.22, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+  }
+  // 足元の文字と、向きの矢印：あとでまとめて描く（キャラの上に出るように）
+  charLabels.push({ p, px: labelX === null ? px : labelX, bottom, ang, alpha });   // 文字は、踏み込みなどで動かさない
+}
+const charLabels = [];
+function drawCharLabels() {
+  for (const { p, px, bottom, ang, alpha } of charLabels.splice(0)) drawCharLabel(p, px, bottom, ang, alpha);
+}
+function drawCharLabel(p, px, bottom, ang, alpha) {
+  const fs = Math.max(11, Math.round(cs * 0.27));
+  const normalDir = p.side === 0 ? 0 : 2;
+  const arrow = p.state === 'rotating' || p.dir !== normalDir;
+  const text = label(p);
+  ctx.save();
+  ctx.font = `700 ${fs}px ${CLR.pieceFont}`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const tw = ctx.measureText(text).width;
+  const lx = px - (arrow ? fs * 0.45 : 0), ly = bottom - fs * 0.35;
+  ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(3, fs * 0.24); ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+  ctx.globalAlpha = alpha * 0.7;   // キャラの上の駒の文字は、濃さ7割
+  ctx.strokeText(text, lx, ly);
+  ctx.fillStyle = CHAR_TEXT[p.side];
+  ctx.fillText(text, lx, ly);
+  if (arrow) {
+    const s = fs * 0.42;
+    ctx.translate(lx + tw / 2 + fs * 0.5, ly); ctx.rotate(ang);   // ang：0 が上向き（回転中は途中の角度）
+    ctx.beginPath();
+    ctx.moveTo(0, -s); ctx.lineTo(s * 0.85, -s * 0.05); ctx.lineTo(s * 0.32, -s * 0.05); ctx.lineTo(s * 0.32, s);
+    ctx.lineTo(-s * 0.32, s); ctx.lineTo(-s * 0.32, -s * 0.05); ctx.lineTo(-s * 0.85, -s * 0.05); ctx.closePath();
+    ctx.lineWidth = Math.max(2, fs * 0.14); ctx.stroke();
+    ctx.fillStyle = CHAR_TEXT[p.side]; ctx.fill();
+  }
+  ctx.restore();
+}
 function drawPiece(p, px, py, ang, scale, alpha = 1, glow = null, bright = false) {
   const s = cs * 0.84 * scale;
   const shape = () => {
@@ -1158,16 +1208,27 @@ function drawHpBar(cx, y, value, side) {
   ctx.fillText(v, x + w + 5, y + h / 2 + 1);
   ctx.restore();
 }
-// 動いた直後の一撃を持つ駒のまわり：金色の輪が脈打つ
-function drawGoldAura(px, py) {
-  const k = pulse(10);
+// 攻め入った瞬間の攻撃（50）を持っている駒：やる気があふれ出すような、大きめの正方形の粒（内から外へ）。
+// 色は黄色に寄せた青・赤（グローも同じ色）
+const AURA = ['#f0ffb4', '#ffc23a'];   // 青のほうは、赤と同じくらい明るく見えるよう明るめに
+function drawAura(p, px, py) {
+  const t = performance.now() / 1000, col = AURA[p.side], N = 10;
+  const cy = py - cs * 0.05;
   ctx.save();
-  ctx.strokeStyle = GOLD; ctx.lineWidth = 3 + 2 * k;
-  ctx.shadowColor = GOLD; ctx.shadowBlur = cs * 0.35;
-  ctx.globalAlpha = 0.65 + 0.35 * k;
-  ctx.beginPath(); ctx.arc(px, py, cs * (0.5 + 0.04 * k), 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = col; ctx.shadowColor = col; ctx.shadowBlur = cs * 0.25;
+  for (let i = 0; i < N; i++) {
+    const ph = (t * 1.1 + i / N + p.id * 0.137) % 1;               // 0：中心近く → 1：外で消える
+    const a = i * 2.39996 + p.id + Math.floor(t * 1.1 + i / N + p.id * 0.137) * 1.7;   // 1回ごとに飛ぶ向きを変える
+    const r = cs * (0.32 + 0.6 * ph);   // 中心から少し離れた所から、広く
+    const x = px + Math.cos(a) * r, y = cy + Math.sin(a) * r * 0.85 - ph * cs * 0.08;
+    const s = cs * (0.045 + 0.035 * ((i * 37) % 5) / 4) * (1 - ph * 0.5);
+    ctx.globalAlpha = Math.sin(Math.PI * Math.min(1, ph * 1.4)) * 0.95;
+    ctx.fillRect(x - s, y - s, s * 2, s * 2);   // 正方形の粒
+  }
   ctx.restore();
 }
+// 動作のあとの休みの円グラフ：青・赤寄りの色で、濃さは4割
+const COOL_RING = ['rgba(150,195,255,0.4)', 'rgba(255,160,168,0.4)'];
 function drawRing(px, py, frac, color) {
   ctx.beginPath();
   ctx.arc(px, py, cs * 0.47, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac);
@@ -1332,8 +1393,11 @@ function draw() {
     drawBrackets(g.x, g.y, col, 2, cs * 0.2, 2);
   }
 
-  // 盤上の駒
-  for (const p of G.pieces) {
+  // 助太刀している駒の、攻撃の拍のどこにいるか（0 が撃った瞬間）。キャラのときの姿に使う
+  const supPhase = new Map(), supOf = new Map();
+  for (const g of G.grapples) for (const sp of [...g.atkSups, ...g.defSups]) { supPhase.set(sp, g.tick / CFG.TICK); supOf.set(sp, g); }
+  // 盤上の駒（キャラのときは、奥の列から順に描いて、手前のキャラが奥に重なるように）
+  for (const p of charMode() ? [...G.pieces].sort((a, b) => a.y - b.y) : G.pieces) {
     if (p.state !== 'idle' && p.state !== 'rotating' && p.state !== 'promoting') continue;
     const px = cellC(p.x), py = cellC(p.y);
     let ang = p.dir * Math.PI / 2;
@@ -1342,9 +1406,22 @@ function draw() {
     // 選んだ駒は少し浮かせて光らせる。回転中・成り中の駒は明るく（そのあいだ、休みのゲージは出さない）
     const acting = p.state !== 'idle';
     const fr = isFresh(p);   // 動いた直後の一撃を持っている：金色に光る
-    drawPiece(p, px, py - (isSel ? cs * 0.08 : 0), ang, isSel ? 1.06 : 1, 1, isSel ? CLR.sel : fr ? GOLD : null, acting || fr);
-    if (fr) drawGoldAura(px, py);
-    if (p.cool > 0 && !acting && !fr) drawRing(px, py, p.cool / (cooldownFor(p) || 1), 'rgba(230,240,250,0.95)');
+    // キャラのとき：待機は動かさない。助太刀が撃つ瞬間は攻撃の姿、当たった瞬間は防御の姿
+    let pose = 'idle', face = 0;
+    // 助太刀しているキャラは、組み合いのマスの側（左右）を向く
+    const sg = supOf.get(p);
+    if (sg) face = sg.x > p.x ? 1 : sg.x < p.x ? -1 : 0;
+    let ox = 0;   // 助太刀が撃つ瞬間は、組み合いのほうへ（左右に）踏み込む
+    if (sg && charMode()) { const ph0 = sg.tick / CFG.TICK; if (ph0 < 0.4) { const k = Math.sin(Math.PI * ph0 / 0.4) * cs * 0.08; ox = Math.sign(sg.x - p.x) * k; } }   // 上下には動かさない
+    if (charMode()) {
+      const ph = supPhase.get(p);
+      if (p.flash > 0) pose = 'defense-1';
+      else if (ph !== undefined && ph < 0.4) pose = 'attack-2';
+      else if (ph !== undefined) pose = 'attack-1';
+    }
+    drawUnit(p, px + ox, py - (isSel ? cs * 0.08 : 0), ang, isSel ? 1.06 : 1, 1, isSel ? CLR.sel : fr ? AURA[p.side] : null, acting || fr, pose, face, px);
+    if (fr) drawAura(p, px, py);
+    if (p.cool > 0 && !acting && !fr) drawRing(px, py, p.cool / (cooldownFor(p) || 1), COOL_RING[p.side]);
     drawSmallHp(p, px, py);
   }
 
@@ -1384,8 +1461,14 @@ function draw() {
     // 2つとも見やすいよう大きめに（マスからはみ出してよい）
     // 奥（上）の駒を先に、手前（下）の駒をあとに描いて重ねる。乗った駒は光る
     // 乗られた駒を先（下の層）、乗った駒をあと（上の層）に描いて重ねる。乗った駒は光る
-    drawPiece(g.def, pos.dx * cs, pos.dy * cs, g.def.dir * Math.PI / 2, 0.88);
-    drawPiece(g.atk, pos.ax * cs, pos.ay * cs, g.atk.dir * Math.PI / 2, 0.88, 1, null, true);
+    // キャラのとき：乗った駒は、撃つ瞬間に踏み込む（攻撃）。乗られた駒は守り、当たった瞬間は防御の姿で、のけぞる
+    const ph = g.tick / CFG.TICK, strike = ph < 0.4 ? Math.sin(Math.PI * ph / 0.4) : 0;
+    const toDef = Math.sign(pos.dy - pos.ay) || 1;
+    const atkPose = g.atk.flash > 0 ? 'defense-1' : ph < 0.4 ? 'attack-2' : 'attack-1';
+    const defPose = g.def.flash > 0 ? 'defense-1' : 'defense-2';
+    const recoil = 0, lunge = 0;   // 上下には動かさない（姿だけ切り替える）
+    drawUnit(g.def, pos.dx * cs, pos.dy * cs + recoil, g.def.dir * Math.PI / 2, 0.88, 1, null, false, defPose);
+    drawUnit(g.atk, pos.ax * cs, pos.ay * cs + lunge, g.atk.dir * Math.PI / 2, 0.88, 1, null, true, atkPose);
     // 体力は細い線にしてマスの下端に。増減の札はマスの右上の角に（駒をなるべく隠さない）
     // 体力バー：上に相手（赤）、下に自分（青）。数字つき
     drawHpBar(px, (g.y + 0.5 + G_TOP - 0.42) * cs - 8, grappleValue(g, 1), 1);
@@ -1401,29 +1484,17 @@ function draw() {
     ctx.fillStyle = 'rgba(63,220,120,0.12)';
     ctx.beginPath(); ctx.ellipse(px, py + cs * 0.3, cs * 0.3, cs * 0.1, 0, 0, Math.PI * 2); ctx.fill();
     const ws = willStrike(p);   // 着いたら一撃（50）になる駒は、金色に光る
-    drawPiece(p, px, py - lift * cs * 0.5, p.dir * Math.PI / 2, 1 + lift, 0.95, ws ? GOLD : null, true);
-    if (ws) drawGoldAura(px, py - lift * cs * 0.5);
+    drawUnit(p, px, py - lift * cs * 0.5, p.dir * Math.PI / 2, 1 + lift, 0.95, ws ? AURA[p.side] : null, true, 'attack-1', p.tx > p.fx ? 1 : p.tx < p.fx ? -1 : 0);
+    if (ws) drawAura(p, px, py - lift * cs * 0.5);
     drawSmallHp(p, px, py);
   }
 
-  // 移動中・回転中・成り中の駒の上に、キャラを薄く重ねる（戦闘中は上の中継に出るので重ねない。設定でオフにできる）。
-  // 青は右向き、赤は左向きが基本。左へ動くときは左向き、右へ動くときは右向き
-  if (SETTINGS.chara && typeof LIVE !== 'undefined') {
-    const dflt = p => p.side === 0 ? 1 : -1;
-    for (const p of G.pieces) {
-      let x, y, pose, face = dflt(p);
-      if (p.state === 'moving') {
-        const f = Math.min(1, p.t / p.dur);
-        x = cellC(p.fx + (p.tx - p.fx) * f); y = cellC(p.fy + (p.ty - p.fy) * f);
-        pose = 'attack-1';
-        if (p.tx > p.fx) face = 1; else if (p.tx < p.fx) face = -1;
-      } else if (p.state === 'rotating' || p.state === 'promoting') {
-        x = cellC(p.x); y = cellC(p.y);
-        pose = 'idle';
-      } else continue;
-      LIVE.figure(ctx, p, pose, x, y + cs * 0.5, cs * 1.33, face, 0.45);
-    }
+  // やられた駒（キャラのとき）：負けの姿で、沈みながら消える
+  if (charMode() && G.ghosts) for (const gh of G.ghosts) {
+    const f = gh.t / 1.3;
+    LIVE.figure(ctx, gh.p, 'ko', cellC(gh.x), cellC(gh.y) + cs * 0.36 + f * cs * 0.15, cs * 1.0, gh.p.side === 0 ? 1 : -1, Math.max(0, 1 - f), true);
   }
+  drawCharLabels();   // キャラの足元の文字（キャラのときだけ溜まっている）
 
   // 移動の矢印・照準・回転の矢印：駒の上に、駒の厚さ1.5個分の高さで描く
   const lift = cs * 0.84 * 0.84 * PIECE_THICK * Math.tan(VIEW.TILT * Math.PI / 180) * 1.5;
@@ -1550,7 +1621,6 @@ function updateHud() {
     const full = 6, fill = slotReady(side) ? full : Math.max(0, Math.min(full - 1, Math.floor((1 - slotWait(side) / CFG.ACT_GAP) * full)));
     return '<i></i>'.repeat(fill) + '<i class="off"></i>'.repeat(full - fill); // 四角は、文字ではなく図形（字体に依存しない）
   };
-  const caps = side => G.captured[side].map(t => LABEL[t]).join('') || '—';
   const sel = G.sel && G.pieces.includes(G.sel) ? G.sel : null;
   const myGrapple = G.grapples.some(g => g.atk.side === 0 || g.def.side === 0);
   let hint = G.watch ? (G.over && G.overAt ? `${G.winner < 0 ? '引き分け' : (G.winner === 0 ? '青' : '赤') + 'の勝ち'}。次の対戦まで ${Math.max(1, Math.ceil(WATCH_NEXT - (performance.now() - G.overAt) / 1000))}秒` : 'COM対戦を観戦中')
@@ -1574,13 +1644,11 @@ function updateHud() {
     $('count').classList.toggle('word', cd === 'START!');
     if (cd === 'START!') { sfx('start'); if (!G.sim) SND.bgmStart(); } else if (cd) sfx('count');
   }
-  const key = [hands(0), hands(1), caps(0), caps(1), hint, sel ? sel.state : '', sel ? (sel.promoted ? 1 : 0) + ',' + (sel.cool > 0 ? 1 : 0) + ',' + sel.y : ''].join('|');
+  const key = [hands(0), hands(1), hint, sel ? sel.state : '', sel ? (sel.promoted ? 1 : 0) + ',' + (sel.cool > 0 ? 1 : 0) + ',' + sel.y : ''].join('|');
   if (key === hudCache) return;
   hudCache = key;
   $('handsYou').innerHTML = hands(0);
   $('handsCpu').innerHTML = hands(1);
-  $('capsYou').textContent = caps(0);
-  $('capsCpu').textContent = caps(1);
   $('hint').textContent = hint;
   const canRot = !G.watch && sel && sel.state === 'idle' && !(sel.cool > 0);
   $('rotL').disabled = !canRot;
@@ -1680,6 +1748,7 @@ function startGame(diff, watch = false, rank = null, pair = null) {
   fillRuleNumbers();
   $('overlay').hidden = true;
   $('result').hidden = true;
+  $('winBanner').hidden = true;
   $('rankNext').hidden = true; $('resultRank').hidden = true; $('again').textContent = 'もう一度';
   // COM対戦では下の欄も「COM」と表示し、回すボタンは隠す
   const who = q => `${q.name}（${q.rank}位）`;
@@ -1692,8 +1761,10 @@ function startGame(diff, watch = false, rank = null, pair = null) {
     const you = pair ? FACE.of(pair[0]) : rank ? FACE.mine(rank.myName || 'YOU') : null;
     const cpu = pair ? FACE.of(pair[1]) : rank ? FACE.of({ name: rank.name, avatar: rank.avatar }) : null;
     fy.hidden = !you; fc.hidden = !cpu;
-    if (you) FACE.paint(fy, you);
-    if (cpu) FACE.paint(fc, cpu);
+    G.faces = [you, cpu];   // 試合の終わりに、勝ち・負けの表情へ描き直すため
+    // 名前の欄の顔は、画面の緑に合わせて、半透明の緑をかぶせる
+    if (you) { FACE.paint(fy, you); FACE.tint(fy, 'rgba(63,220,120,0.25)'); }
+    if (cpu) { FACE.paint(fc, cpu); FACE.tint(fc, 'rgba(63,220,120,0.25)'); }
   }
   document.documentElement.classList.toggle('watch', !!watch);
   hudCache = '';
@@ -1711,7 +1782,22 @@ function endGame(winner) {
   else if (G.watch) $('resultTitle').innerHTML = winner === 0 ? '<span class="c-blue">青</span>の勝ち' : '<span class="c-red">赤</span>の勝ち';
   else $('resultTitle').textContent = winner === 0 ? '勝ち' : '負け';
   $('resultTime').textContent = `${m}分${String(s).padStart(2, '0')}秒`;
+  // 顔の表情：勝った側は勝ち、負けた側は負け（引き分けはそのまま）
+  if (G.faces && typeof FACE !== 'undefined') {
+    const tintC = 'rgba(63,220,120,0.25)';
+    [['faceYou', 0], ['faceCpu', 1]].forEach(([id, side], i) => {
+      const av = G.faces[i];
+      if (!av || $(id).hidden) return;
+      FACE.paint($(id), av, winner < 0 ? 'normal' : winner === side ? 'win' : 'lose');
+      FACE.tint($(id), tintC);
+    });
+  }
   if (G.watch) {
+    // 観戦：勝った人の名前を、盤の上に大きく出す（次の試合が始まるまで）
+    const wb = $('winBanner');
+    if (winner < 0) { wb.textContent = '引き分け'; wb.className = 'win-banner draw'; }
+    else { wb.textContent = `${(winner === 0 ? $('whoYou') : $('whoCpu')).textContent}の勝ち`; wb.className = 'win-banner ' + (winner === 0 ? 'blue' : 'red'); }
+    wb.hidden = false;
     // 観戦：結果の画面は出さず、5秒たったら次の対戦を始める（メニューを開いている間は待つ）
     const game = G;
     game.overAt = performance.now();
@@ -1752,7 +1838,14 @@ async function startWatch() {
       let b; do { b = rows[Math.floor(Math.random() * rows.length)]; } while (b === a);
       pair = Math.random() < 0.5 ? [a, b] : [b, a];
     }
-  } catch (e) { /* つながらなければ、ふつうのCOM対戦 */ }
+  } catch (e) { /* つながらないときは、下で最初の顔ぶれから選ぶ */ }
+  if (!pair) {
+    // ランキングにつながらないときも、名前と顔のある2人で：最初の顔ぶれ（COM 100人）の1〜49位から
+    const rows = RankCore.standings([], RankCore.makeComs()).filter(r => r.rank < 50);
+    const a = rows[Math.floor(Math.random() * rows.length)];
+    let b; do { b = rows[Math.floor(Math.random() * rows.length)]; } while (b === a);
+    pair = [a, b];
+  }
   startGame('hard', true, null, pair);
 }
 $('watch').addEventListener('click', startWatch);
@@ -1767,6 +1860,7 @@ document.querySelectorAll('#freeView [data-diff]').forEach(b => b.addEventListen
 function showSec() {
   document.querySelectorAll('[data-sec]').forEach(b => b.setAttribute('aria-checked', String(+b.dataset.sec === SETTINGS.sec)));
   $('setSec').textContent = `${SETTINGS.sec}秒`;
+  document.querySelectorAll('[data-msec]').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.msec === SETTINGS.sec)));
   fillRuleNumbers();
 }
 const secMenu = $('secMenu');
@@ -1932,6 +2026,11 @@ function backToTitle() {
   $('toast').classList.remove('show');
   hudCache = '';
 }
+// 試合中のメニューの速さ（3・6・9秒）：選ぶと、その場で試合の速さが変わる。次の試合からもこの速さ
+document.querySelectorAll('[data-msec]').forEach(b => b.addEventListener('click', () => {
+  SETTINGS.sec = +b.dataset.msec; saveSettings(); showSec();
+  if (G) G.speed = 3 / SETTINGS.sec;
+}));
 $('quitBtn').addEventListener('click', openMenu);
 $('menuResume').addEventListener('click', closeMenu);
 $('menuTop').addEventListener('click', openQuit);

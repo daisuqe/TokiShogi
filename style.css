@@ -435,3 +435,26 @@ button.quit-btn:hover:not(:disabled) { opacity: 1; color: var(--g5); border: non
 .edit-option img { background: #ffb985; }
 .edit-option.color { border-color: rgba(255, 255, 255, 0.35); }
 .edit-option.selected { border-color: #ffd24a; outline: 2px solid #ffd24a; outline-offset: 1px; }
+
+/* 試合中のメニュー：速さ（3・6・9秒）を横に3つ */
+.menu-secs { display: flex; gap: 6px; }
+.menu-panel .menu-secs button { flex: 1 1 0; width: auto; min-width: 0; }
+.menu-panel .menu-secs button[aria-pressed="false"] { opacity: 0.5; color: var(--g3); }
+.menu-panel .menu-secs button[aria-pressed="true"] { border-color: var(--g4); color: var(--g5); background: rgba(63, 220, 120, 0.15); }
+
+/* （緑は face.js の tint で、顔の形にだけ半透明で重ねる） */
+
+/* 観戦の勝者の表示：盤の真ん中に、帯で大きく */
+.win-banner {
+  position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%);
+  padding: 14px 8px; text-align: center; pointer-events: none; z-index: 5;
+  font-size: 26px; letter-spacing: 0.08em;
+  background: linear-gradient(90deg, transparent, rgba(1, 8, 5, 0.85) 15%, rgba(1, 8, 5, 0.85) 85%, transparent);
+  animation: win-in 0.35s ease-out;
+}
+.win-banner[hidden] { display: none; }
+.win-banner.blue { color: #8ec5ff; text-shadow: 0 0 12px var(--you), 0 0 24px var(--you); }
+.win-banner.red { color: #ff9a9e; text-shadow: 0 0 12px var(--cpu), 0 0 24px var(--cpu); }
+.win-banner.draw { color: var(--g5); text-shadow: 0 0 12px var(--g4); }
+@keyframes win-in { from { opacity: 0; transform: translateY(-50%) scale(1.3); } to { opacity: 1; transform: translateY(-50%) scale(1); } }
+@media (max-width: 480px) { .win-banner { font-size: 22px; } }
