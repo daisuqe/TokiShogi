@@ -9,6 +9,7 @@ const LIVE = (() => {
   const MISAKI = '"TokiMisaki", monospace';
   const COL = { 0: '#59a8ff', 1: '#ff5c63' };              // 青・赤
   const COL_D = { 0: '#2f7bff', 1: '#ff3344' };
+  const DARK_FILL = { 0: '#16336e', 1: '#661722' };   // 行動中のキャラの、黒い塗りの所の色（暗い青・赤）
   const SPARK = { 0: ['#6fb0ff', '#a8d4ff', '#ffffff', '#fff3b0'], 1: ['#ff6a5c', '#ffb36b', '#ffffff', '#fff3b0'] };
 
   // ===== 絵（image/） =====
@@ -33,9 +34,19 @@ const LIVE = (() => {
   // 線を軍の色（青・赤）に塗る：白い線を色に、黒い塗りはそのまま
   const tinted = {};
   // ピクセルを読み出さず、重ね方（合成）だけで塗る。ファイルを直接開いた（file://）ときも動く
-  function tint(im, key, color) {
+  // dark を渡すと、黒い塗りの所を、その暗い色にする（行動中のキャラ）
+  function tint(im, key, color, dark) {
     if (tinted[key] !== undefined) return tinted[key];
     try {
+      if (dark) {   // 白い線→色、黒い塗り→暗い色：暗い色を下に敷いて、色をつけた線を足す
+        const t = document.createElement('canvas'); t.width = im.naturalWidth; t.height = im.naturalHeight;
+        const tx = t.getContext('2d');
+        tx.fillStyle = dark; tx.fillRect(0, 0, t.width, t.height);
+        const base = tint(im, key + '-base', color);
+        if (base) { tx.globalCompositeOperation = 'lighter'; tx.drawImage(base, 0, 0); }
+        tx.globalCompositeOperation = 'destination-in'; tx.drawImage(im, 0, 0);
+        return (tinted[key] = t);
+      }
       const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight;
       const x = c.getContext('2d');
       x.drawImage(im, 0, 0);
@@ -444,8 +455,27 @@ const LIVE = (() => {
       if (!p) return;   // 王が取られたあとは、いない側は描かない
       const k = 92 * u / 148 * sizeOf(p);
       const bob = Math.sin(ts * 2 + i) * 1.5 * u;
-      drawSprite(p, 'idle', i === 0 ? W * 0.27 : W * 0.73, H - 12 * u + bob, k, i === 0 ? 1 : -1, 0.6, COL[i]);
+      const x = i === 0 ? W * 0.27 : W * 0.73, y = H - 12 * u + bob;
+      const won = G.over && G.winner === i;
+      if (won) celebrate(p, x, y, k, ts);   // 勝った王（玉）のまわりに、祝福の粒
+      drawSprite(p, 'idle', x, y, k, i === 0 ? 1 : -1, won ? 1 : 0.6, COL[i]);
     });
+  }
+  // 勝った王（玉）のまわり：盤の「攻め入る駒」と同じ、正方形の粒が内から外へあふれる（色も同じ、黄色寄りの青・赤）
+  function celebrate(p, x, y, k, ts) {
+    const col = (typeof AURA !== 'undefined' ? AURA : ['#f0ffb4', '#ffc23a'])[p.side];
+    const u = unit(), cy = y - 148 * k * 0.5, N = 18;   // キャラの高さの真ん中あたりから
+    ctx.save();
+    ctx.fillStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 10 * u;
+    for (let i = 0; i < N; i++) {
+      const ph = (ts * 0.8 + i / N) % 1;
+      const a = i * 2.39996 + Math.floor(ts * 0.8 + i / N) * 1.7;
+      const r = (22 + 70 * ph) * u;
+      const s = (2.5 + 2 * ((i * 37) % 5) / 4) * u * (1 - ph * 0.5);
+      ctx.globalAlpha = Math.sin(Math.PI * Math.min(1, ph * 1.3)) * 0.95;
+      ctx.fillRect(x + Math.cos(a) * r - s, cy + Math.sin(a) * r * 0.8 - ph * 10 * u - s, s * 2, s * 2);
+    }
+    ctx.restore();
   }
 
   // 火花・衝撃波・斬撃・文字
@@ -493,13 +523,13 @@ const LIVE = (() => {
   }
 
   // 盤の上の駒に重ねる、薄く大きなキャラ（別のキャンバスに描く）。bottom の位置に足、高さ height
-  function figure(c, p, pose, x, bottom, height, face, alpha, light) {
+  function figure(c, p, pose, x, bottom, height, face, alpha, light, dark) {
     const im = img(baseName(p), pose);
     if (!im.complete || !im.naturalWidth) return;
     const k = height / im.naturalHeight, w = im.naturalWidth * k;
     c.save();
     c.translate(x, bottom); c.scale(face, 1); c.globalAlpha = alpha;
-    c.drawImage(tint(im, baseName(p) + '-' + pose + '-' + (light ? 'l' : 'd') + p.side, (light ? COL : COL_D)[p.side]) || im, -w / 2, -height, w, height);   // 盤の上は、濃い青・赤の線
+    c.drawImage(tint(im, baseName(p) + '-' + pose + '-' + (light ? 'l' : 'd') + p.side + (dark ? '-f' : ''), (light ? COL : COL_D)[p.side], dark ? DARK_FILL[p.side] : null) || im, -w / 2, -height, w, height);   // 盤の上は、濃い青・赤の線
     c.restore();
   }
   // スタート画面の題名の左右：王（青）と玉（赤）

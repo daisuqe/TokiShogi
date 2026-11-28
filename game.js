@@ -15,7 +15,8 @@ const CFG = {
   FIRST: 50,                   // 攻め入った瞬間の攻撃（敵に乗った瞬間と、助太刀のマスに入った瞬間の1発だけ。受け身の助太刀では発生しない。溜めておけない）。ふつうの攻撃は BASE・SUP（試験で決めた数字：動かない守りが強すぎるのを防ぐ）
   BASE: 5,                     // 乗った駒が、1拍ごとに乗られた駒へ与えるダメージ
   SUP: 5,                      // 助太刀の▲1発のダメージ（味方の回復はしない）。助太刀は何体でも入れる
-  HUNT: 1.2,                   // COM：敵の王への近づき1マスぶんの点数
+  HUNT: 1.2,
+  MOB: 0.5,                    // COM：飛車・角の動ける先1マスぶんの点数（6マスまで）                   // COM：敵の王への近づき1マスぶんの点数
   SHIELD: 22,                  // COM：王の守り（助太刀）1体ぶんの点数（2体まで）
   SHOT_TIME: 0.35,             // ▲が飛んで当たるまで（見た目だけ）
 };
@@ -89,7 +90,8 @@ let G = null;
 // 盤の大きさごとの初期配置（自分側。奥の段と、その前の段）
 const LAYOUTS = {
   '7x7': { back: ['KY','KE','GI','OU','KI','KE','KY'], mid: ['FU','HI','FU',null,'FU','KA','FU'] },
-  '5x7': { back: ['KY','GI','OU','KI','KE'],           mid: ['FU','HI','FU','KA','FU'] },
+  // 5×7（2026-11-29 案B）：飛車を奥の隅（前に歩、横に銀があり、すぐには出られない）、桂を前の段、香を右奥の隅に
+  '5x7': { back: ['HI','GI','OU','KI','KY'],           mid: ['FU','KE','FU','KA','FU'] },
 };
 function newGame(diff, watch = false, rank = null) {
   G = {
@@ -442,6 +444,7 @@ function spawnSparks(x, y, cols, n, delay = 0) {
   }
 }
 function resolve(g, atkWins) {
+  if ((atkWins ? g.def : g.atk).type === 'OU') G.winPiece = atkWins ? g.atk : g.def;   // 王を取った駒（勝ったあと明るく見せる）
   live('end', g, atkWins);
   G.grapples = G.grapples.filter(q => q !== g);
   if (atkWins) {
@@ -686,7 +689,10 @@ function cpuThink(S = 1, dk = G.diff, sync = false) {
       }
       if (dmin < 99) hunt = -CFG.HUNT * sm('aggr') * dmin;
     }
-    return -risk + 0.5 * opp + grap + shield + hunt;
+    // 飛車・角の動ける広さ：隅に埋まった大駒を、前の駒をどけて活かす（2026-11-29 の並びの案B で、飛車が奥の隅にいるため）
+    let mob = 0;
+    for (const p of mine) if ((p.type === 'HI' || p.type === 'KA') && p.state === 'idle') mob += Math.min(6, legalTargets(p).length);
+    return -risk + 0.5 * opp + grap + shield + hunt + CFG.MOB * mob;
   };
 
   const base = evaluate();
@@ -1029,8 +1035,13 @@ function drawUnit(p, px, py, ang, scale, alpha = 1, glow = null, bright = false,
   const h = cs * 1.15 * scale, bottom = py + cs * 0.36;
   ctx.save();
   if (glow) { ctx.shadowColor = glow; ctx.shadowBlur = cs * 0.3; }
-  LIVE.figure(ctx, p, pose, px, bottom, h, face || (p.side === 0 ? 1 : -1), alpha, true);
+  LIVE.figure(ctx, p, pose, px, bottom, h, face || (p.side === 0 ? 1 : -1), alpha, true, bright);   // 行動中は、黒い塗りを暗い青・赤に
   ctx.restore();
+  if (bright) {   // 行動中・勝った駒：線を重ねて明るく
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    LIVE.figure(ctx, p, pose, px, bottom, h, face || (p.side === 0 ? 1 : -1), alpha * 0.55, true);
+    ctx.restore();
+  }
   if (p.flash > 0) {   // 当たった瞬間：白く光る
     ctx.save(); ctx.globalAlpha = Math.min(1, p.flash); ctx.fillStyle = '#ffffff'; ctx.shadowColor = '#ffffff'; ctx.shadowBlur = cs * 0.5;
     ctx.beginPath(); ctx.arc(px, bottom - h * 0.45, cs * 0.22, 0, Math.PI * 2); ctx.fill(); ctx.restore();
@@ -1419,7 +1430,8 @@ function draw() {
       else if (ph !== undefined && ph < 0.4) pose = 'attack-2';
       else if (ph !== undefined) pose = 'attack-1';
     }
-    drawUnit(p, px + ox, py - (isSel ? cs * 0.08 : 0), ang, isSel ? 1.06 : 1, 1, isSel ? CLR.sel : fr ? AURA[p.side] : null, acting || fr, pose, face, px);
+    const won = G.over && G.winner >= 0 && p.side === G.winner && (p === G.winPiece || p.type === 'OU');   // 勝った駒（王を取った駒と、勝った側の王）は明るく
+    drawUnit(p, px + ox, py - (isSel ? cs * 0.08 : 0), ang, isSel ? 1.06 : 1, 1, isSel ? CLR.sel : fr ? AURA[p.side] : null, acting || fr || won, pose, face, px);
     if (fr) drawAura(p, px, py);
     if (p.cool > 0 && !acting && !fr) drawRing(px, py, p.cool / (cooldownFor(p) || 1), COOL_RING[p.side]);
     drawSmallHp(p, px, py);
@@ -1623,7 +1635,7 @@ function updateHud() {
   };
   const sel = G.sel && G.pieces.includes(G.sel) ? G.sel : null;
   const myGrapple = G.grapples.some(g => g.atk.side === 0 || g.def.side === 0);
-  let hint = G.watch ? (G.over && G.overAt ? `${G.winner < 0 ? '引き分け' : (G.winner === 0 ? '青' : '赤') + 'の勝ち'}。次の対戦まで ${Math.max(1, Math.ceil(WATCH_NEXT - (performance.now() - G.overAt) / 1000))}秒` : 'COM対戦を観戦中')
+  let hint = G.watch ? (G.over && G.overAt ? `${G.winner < 0 ? '引き分け' : (G.pair ? G.pair[G.winner].name : G.winner === 0 ? '青' : '赤') + ' の勝ち'}。次の対戦まで ${Math.max(1, Math.ceil(WATCH_NEXT - (performance.now() - G.overAt) / 1000))}秒` : 'COM対戦を観戦中')
     : myGrapple ? '組み合い中! 隣のマスに、そこへ動ける向きの駒を置くと助太刀になります'
     : '自分の駒（青）を選んでください';
   if (sel && !G.watch) {
@@ -1796,7 +1808,14 @@ function endGame(winner) {
     // 観戦：勝った人の名前を、盤の上に大きく出す（次の試合が始まるまで）
     const wb = $('winBanner');
     if (winner < 0) { wb.textContent = '引き分け'; wb.className = 'win-banner draw'; }
-    else { wb.textContent = `${(winner === 0 ? $('whoYou') : $('whoCpu')).textContent}の勝ち`; wb.className = 'win-banner ' + (winner === 0 ? 'blue' : 'red'); }
+    else {
+      // 「＜顔＞ RATO の勝ち」：勝った人の顔（勝ちの表情）と名前（順位は出さない）
+      const name = G.pair ? G.pair[winner].name : winner === 0 ? '青' : '赤';
+      wb.textContent = '';
+      if (G.faces && G.faces[winner] && typeof FACE !== 'undefined') { const f = FACE.make(G.faces[winner], 'win-face'); FACE.paint(f, G.faces[winner], 'win'); wb.append(f); FACE.tint(f, 'rgba(63,220,120,0.25)'); }   // 名前の欄の顔と同じだけ緑をかぶせる
+      wb.append(document.createTextNode(` ${name} の勝ち`));
+      wb.className = 'win-banner ' + (winner === 0 ? 'blue' : 'red');
+    }
     wb.hidden = false;
     // 観戦：結果の画面は出さず、5秒たったら次の対戦を始める（メニューを開いている間は待つ）
     const game = G;
@@ -2045,9 +2064,9 @@ document.addEventListener('click', e => {
   if (b && !['rotL', 'rotR', 'promoBtn', 'setSe', 'menuSe'].includes(b.id)) SND.play('ui');
 });
 
-// 設定ボタン（スタート画面）：効果音・BGM・駒の上のキャラ
+// 設定ボタン（スタート画面）：効果音・BGM・駒をキャラクター表示
 (function () {
-  const items = [['se', 'SE', 'サウンド（効果音）', v => SND.setSe(v)], ['bgm', 'BGM', 'サウンド（BGM）', v => SND.setBgm(v)], ['chara', 'CHARA', '駒の上のキャラ', () => {}]];
+  const items = [['se', 'SE', 'サウンド（効果音）', v => SND.setSe(v)], ['bgm', 'BGM', 'サウンド（BGM）', v => SND.setBgm(v)], ['chara', 'CHARA', '駒をキャラクター表示', () => {}]];
   const cap = { se: 'Se', bgm: 'Bgm', chara: 'Chara' };
   for (const [key, name, label, fn] of items) {
     // スタート画面（set〜）とメニュー（menu〜）の両方のボタンを同じ設定につなぐ
