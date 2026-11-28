@@ -51,7 +51,8 @@ const RankClient = (() => {
       },
       async register(name, opp, result, margin) {
         name = RC.cleanName(name);
-        if (!RC.validName(name)) return { ok: false, error: '英大文字4文字で入力してください' };
+        if (!RC.validName(name)) return { ok: false, error: '英大文字（A〜Z）1〜4文字で入力してください' };
+        if (RC.rudeName(name)) return { ok: false, error: 'その名前は使えません' };
         if (st.coms.some(c => c.name === name)) return { ok: false, error: 'その名前は使われています' };
         const rating = RC.initialRating(opp.rating, result, margin);
         const pv = RC.previewEntry(users(), st.coms, rating);

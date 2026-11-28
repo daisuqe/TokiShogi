@@ -54,7 +54,8 @@ const RankUI = (() => {
     $('entryNo').onclick = () => done(ok ? '登録しませんでした。次の試合もランキングに入る前の試合です' : '');
     $('entryYes').onclick = async () => {
       const name = RankCore.cleanName($('entryName').value);
-      if (!RankCore.validName(name)) { $('entryErr').textContent = '英大文字4文字で入力してください'; $('entryErr').hidden = false; return; }
+      if (!RankCore.validName(name)) { $('entryErr').textContent = '英大文字（A〜Z）1〜4文字で入力してください'; $('entryErr').hidden = false; return; }
+      if (RankCore.rudeName(name)) { $('entryErr').textContent = 'その名前は使えません'; $('entryErr').hidden = false; return; }
       $('entryYes').disabled = true;
       try {
         const r = await RankClient.register(name, { name: o.name, rating: o.oppRating, nonce: o.nonce }, info.win ? 1 : 0, info.margin);

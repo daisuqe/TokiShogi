@@ -38,8 +38,24 @@
   const neutralStyle = () => Object.fromEntries(STYLE_KEYS.map(k => [k, 0.5]));
 
   // 名前：英大文字4文字
-  const NAME_RE = /^[A-Z]{4}$/;
+  // 名前：英大文字1〜4文字（形だけ。すでに登録した人の確認にも使う）
+  const NAME_RE = /^[A-Z]{1,4}$/;
   const validName = name => typeof name === 'string' && NAME_RE.test(name);
+  // 下品な名前・下ネタを連想する名前は登録できない（登録のときだけ確かめる）
+  const RUDE_EXACT = new Set(['ASS', 'ASSH', 'ARSE', 'TIT', 'TITS', 'TITY', 'HOE', 'HOES', 'FAG', 'FAGS', 'BUTT', 'POO', 'POOP', 'PEE', 'PEES',
+    'FART', 'TURD', 'UNKO', 'UNCO', 'BOOB', 'BOBS', 'DIK', 'DIKS', 'KUSO', 'MANK', 'MANC', 'CHNK', 'OPAI', 'ETCH', 'ECHI',
+    'HENT', 'NUDE', 'NUDY', 'SEXY', 'SEKS', 'SUCK', 'SUK', 'HUMP', 'BRA', 'BRAS', 'KKK', 'CHIN']);
+  const RUDE_PART = ['SEX', 'SOX', 'SXE', 'FUC', 'FUK', 'FCK', 'FKU', 'CUM', 'COCK', 'DICK', 'PORN', 'PRN', 'CUNT', 'CNT', 'TWAT',
+    'SLUT', 'WHOR', 'RAPE', 'PEDO', 'NAZI', 'NIG', 'NGR', 'CLIT', 'JIZ', 'MILF', 'DILF', 'THOT', 'ORGY', 'WANK', 'FAP', 'VAG', 'ANAL', 'ANUS',
+    'PISS', 'SHIT', 'SHT', 'TITT', 'PENI', 'PNS', 'XXX', 'KINK', 'BICH', 'BTCH', 'SPRM', 'SEMN', 'BOOB'];
+  function rudeName(name) {
+    const n = String(name || '').toUpperCase();
+    if (n === 'FUKU') return false;   // 福（ふく）は使える
+    if (RUDE_EXACT.has(n)) return true;
+    if (/^FU.*K$/.test(n) || /^F.*CK$/.test(n) || /^F.{0,2}K$/.test(n)) return true;   // FUK・FUCK・FCK・FAK など
+    return RUDE_PART.some(w => n.includes(w));
+  }
+  const okNewName = name => validName(name) && !rudeName(name);
   const cleanName = s => String(s || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4);
 
   // 最初の COM 100人：読みやすい名前（子音＋母音を2回）と、うち筋の傾向をランダムに決める（いつも同じ顔ぶれ）
@@ -160,7 +176,7 @@
 
   const API = {
     MAX_ENTRIES, NEAR, STYLE_KEYS, clamp, clamp01, hash, mulberry32, expected, strengthOf, neutralStyle,
-    validName, cleanName, makeComs, standings, firstOpponent, pickOpponent, initialRating, previewEntry,
+    validName, okNewName, rudeName, cleanName, makeComs, standings, firstOpponent, pickOpponent, initialRating, previewEntry,
     applyResult, mergeStyle, cleanStyle, dailyUpdate, byRating, cleanAvatar,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.RankCore = API;

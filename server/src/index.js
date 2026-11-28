@@ -117,7 +117,8 @@ async function handle(request, env) {
 
   if (path === '/api/register' && request.method === 'POST') {
     const name = RC.cleanName(body.name);
-    if (!RC.validName(name)) return json({ ok: false, error: '英大文字4文字で入力してください' });
+    if (!RC.validName(name)) return json({ ok: false, error: '英大文字（A〜Z）1〜4文字で入力してください' });
+    if (RC.rudeName(name)) return json({ ok: false, error: 'その名前は使えません' });
     if (typeof body.token !== 'string' || body.token.length < 16 || body.token.length > 128) return json({ ok: false, error: 'bad-token' }, 400);
     const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
     if (!await rateLimit(env, 'reg:' + await sha256(ip), REGISTER_PER_HOUR, 3600)) return json({ ok: false, error: 'しばらくしてからもう一度' }, 429);

@@ -172,8 +172,7 @@ kbd { font-size: 11px; color: var(--g3); font-family: inherit; }
 .count.show { opacity: 1; }
 /* カウントダウンは、よだかのフォント（font-yodaka.css） */
 .count { font-family: "TokiYodaka", "TokiFont", sans-serif; font-size: 128px; font-weight: 400; }
-.count.word { font-size: 96px; }
-@media (max-width: 480px) { .count { font-size: 96px; } .count.word { font-size: 64px; } }
+@media (max-width: 480px) { .count { font-size: 96px; } }
 .overlay {
   position: fixed; inset: 0;
   background: rgba(1, 8, 5, 0.82);
@@ -461,3 +460,9 @@ button.quit-btn:hover:not(:disabled) { opacity: 1; color: var(--g5); border: non
 @media (max-width: 480px) { .win-banner { font-size: 22px; } }
 
 .win-banner .win-face { width: 40px; height: 40px; vertical-align: -10px; }
+
+/* 名前の入力の決まり（英大文字1〜4文字） */
+.entry-hint { margin: 4px 0 0; font-size: 13px; color: var(--g3); text-align: center; }
+
+/* START!（全角6文字）：盤の幅に合わせて大きさを決め、1行に収める（折り返さない） */
+.count.word { white-space: nowrap; font-size: 64px; }   /* 大きさは game.js が盤の幅に合わせて決める */

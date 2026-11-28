@@ -25,7 +25,7 @@
 <link rel="stylesheet" href="font.css?v=20261125b">
 <link rel="stylesheet" href="font-misaki.css?v=20261127a">
 <link rel="stylesheet" href="font-yodaka.css?v=20261128a">
-<link rel="stylesheet" href="style.css?v=20261129d">
+<link rel="stylesheet" href="style.css?v=20261129g">
 </head>
 <body>
 <main>
@@ -235,7 +235,8 @@ daisuqe が保有します。著作権者の事前の書面による許可なく
 <div id="entryDlg" class="overlay apps-dlg" role="dialog" aria-modal="true" aria-labelledby="entryMsg" hidden>
   <div class="panel apps-panel entry-panel">
     <p id="entryMsg" class="apps-msg"></p>
-    <label id="entryLabel" class="entry-name">Name <input id="entryName" type="text" maxlength="4" pattern="[A-Z]{4}" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Name, four uppercase letters"></label>
+    <label id="entryLabel" class="entry-name">Name <input id="entryName" type="text" maxlength="4" pattern="[A-Z]{1,4}" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Name, one to four uppercase letters"></label>
+    <p class="entry-hint">英大文字（A〜Z）1〜4文字</p>
     <p id="entryErr" class="entry-err" hidden></p>
     <div class="apps-btns">
       <button id="entryYes" type="button">Entry</button>
@@ -263,12 +264,12 @@ daisuqe が保有します。著作権者の事前の書面による許可なく
 </div>
 
 <script src="sound.js?v=20261129c"></script>
-<script src="rank-core.js?v=20261128a"></script>
+<script src="rank-core.js?v=20261129a"></script>
 <script src="face.js?v=20261129c"></script>
-<script src="rank-client.js?v=20261128a"></script>
-<script src="game.js?v=20261129h"></script>
+<script src="rank-client.js?v=20261129a"></script>
+<script src="game.js?v=20261129j"></script>
 <script src="live.js?v=20261129d"></script>
-<script src="rank-ui.js?v=20261128a"></script>
+<script src="rank-ui.js?v=20261129a"></script>
 <script>
 /* ビルド番号：style.css の ?v= の値（更新のたびに変える版数）をそのまま出す */
 (function(){var l=document.querySelector('link[href^="style.css"]'),m=l&&/[?&]v=([^&]+)/.exec(l.getAttribute("href")),e=document.getElementById("build");if(e&&m)e.textContent="build "+m[1];})();

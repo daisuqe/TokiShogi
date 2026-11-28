@@ -1654,6 +1654,8 @@ function updateHud() {
     $('count').textContent = cd.replace(/[0-9A-Z!]/g, c => String.fromCharCode(c === '!' ? 0xFF01 : c.charCodeAt(0) + 0xFEE0));
     $('count').classList.toggle('show', cd !== '');
     $('count').classList.toggle('word', cd === 'START!');
+    // START!（全角6文字）は、盤の幅の9割に収まる大きさにして、1行で出す
+    $('count').style.fontSize = cd === 'START!' ? Math.min(96, Math.floor(document.querySelector('.boardwrap').clientWidth * 0.9 / 6)) + 'px' : '';
     if (cd === 'START!') { sfx('start'); if (!G.sim) SND.bgmStart(); } else if (cd) sfx('count');
   }
   const key = [hands(0), hands(1), hint, sel ? sel.state : '', sel ? (sel.promoted ? 1 : 0) + ',' + (sel.cool > 0 ? 1 : 0) + ',' + sel.y : ''].join('|');
@@ -2018,7 +2020,16 @@ function closeMenu() {
   if (G) G.paused = false;
   menuDlg.hidden = true;
   $('quitBtn').focus();
+  if (G && G.bgmHeld) { G.bgmHeld = false; if (!G.over && !(G.countdown > 0)) SND.bgmStart(); }   // 裏に回って止めたBGMを、試合に戻るときに鳴らし直す
 }
+// ほかのタブ・アプリに切り替えて、ゲームが裏に回ったら：試合を止めてメニューを出し、BGMも止める（戻ったら「試合に戻る」で再開）
+function pauseInBackground() {
+  if (!G || G.over || !$('overlay').hidden) return;
+  if (!G.paused) openMenu();
+  if (!G.bgmHeld && !(G.countdown > 0)) { G.bgmHeld = true; SND.bgmStop(); }
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden) pauseInBackground(); });
+window.addEventListener('pagehide', pauseInBackground);
 // 「トップに戻る」：確認を出す（試合は止めたまま）
 function openQuit() {
   $('quitMsg').textContent = isJapanese()
