@@ -1654,8 +1654,16 @@ function updateHud() {
     $('count').textContent = cd.replace(/[0-9A-Z!]/g, c => String.fromCharCode(c === '!' ? 0xFF01 : c.charCodeAt(0) + 0xFEE0));
     $('count').classList.toggle('show', cd !== '');
     $('count').classList.toggle('word', cd === 'START!');
-    // START!（全角6文字）は、盤の幅の9割に収まる大きさにして、1行で出す
-    $('count').style.fontSize = cd === 'START!' ? Math.min(96, Math.floor(document.querySelector('.boardwrap').clientWidth * 0.9 / 6)) + 'px' : '';
+    // START!（全角6文字）は、画面の幅の9割に収まる大きさにして、1行で出す（盤からははみ出てよい）
+    $('count').style.fontSize = '';
+    if (cd === 'START!') {
+      // 実際の文字の幅を測って、画面の幅の9割になる大きさに（字の幅は字体で違うため）。上限は128px
+      const el = $('count'), want = document.documentElement.clientWidth * 0.9;
+      el.style.fontSize = '64px';
+      const rg = document.createRange(); rg.selectNodeContents(el);
+      const w = rg.getBoundingClientRect().width || 1;
+      el.style.fontSize = Math.min(128, Math.floor(64 * want / w)) + 'px';
+    }
     if (cd === 'START!') { sfx('start'); if (!G.sim) SND.bgmStart(); } else if (cd) sfx('count');
   }
   const key = [hands(0), hands(1), hint, sel ? sel.state : '', sel ? (sel.promoted ? 1 : 0) + ',' + (sel.cool > 0 ? 1 : 0) + ',' + sel.y : ''].join('|');
